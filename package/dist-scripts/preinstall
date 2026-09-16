@@ -47,6 +47,21 @@ if [ -d "${RIME_DIR}" ]; then
         fi
     done
 
+    # 配置文件名从 squirrel.yaml 改成 bangke.yaml 后, 老的 squirrel.custom.yaml
+    # 不再被任何东西读取。它是用户手调的样式/开关, 留着等于静默丢失, 所以整份迁移
+    # (两者内容同源, patch 键完全兼容)。两份都在时不自动合并——合并 YAML 不是
+    # shell 该干的事, 只记录一条让用户自己取舍。
+    OLD_CUSTOM="${RIME_DIR}/squirrel.custom.yaml"
+    NEW_CUSTOM="${RIME_DIR}/bangke.custom.yaml"
+    if [ -f "${OLD_CUSTOM}" ]; then
+        if [ -f "${NEW_CUSTOM}" ]; then
+            echo "[preinstall] bangke.custom.yaml 与旧的 squirrel.custom.yaml 同时存在, 未自动合并; 后者已失效, 需要时手工并过去" >> "${LOG}"
+        else
+            mv "${OLD_CUSTOM}" "${NEW_CUSTOM}"
+            echo "[preinstall] 迁移 squirrel.custom.yaml -> bangke.custom.yaml" >> "${LOG}"
+        fi
+    fi
+
     if [ -d "${RIME_DIR}/build" ]; then
         echo "[preinstall] removing stale build/ (will be regenerated)" >> "${LOG}"
         rm -rf "${RIME_DIR}/build"
