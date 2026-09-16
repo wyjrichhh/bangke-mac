@@ -15,7 +15,7 @@ struct SquirrelApp {
   } else {
     try! FileManager.default.url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: false).appendingPathComponent("Rime", isDirectory: true)
   }
-  static let appDir = "/Library/Input Library/Squirrel.app".withCString { dir in
+  static let appDir = "/Library/Input Methods/Squirrel.app".withCString { dir in
     URL(fileURLWithFileSystemRepresentation: dir, isDirectory: false, relativeTo: nil)
   }
   // Use ~/Library/Logs/Squirrel/ instead of TMPDIR so that the log files are
@@ -43,7 +43,9 @@ struct SquirrelApp {
           runningSquirrels.forEach { $0.terminate() }
           return true
         case "--reload":
-          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelReloadNotification"), object: nil)
+          // Squirrel is a background app, and AppKit suspends distributed-notification delivery to inactive apps;
+          // deliverImmediately is required for these notifications to reach Squirrel while it stays in the background
+          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelReloadNotification"), object: nil, userInfo: nil, deliverImmediately: true)
           return true
         case "--register-input-source", "--install":
           installer.register()
@@ -76,9 +78,7 @@ struct SquirrelApp {
           }
           return true
         case "--build":
-          // Notification
           SquirrelApplicationDelegate.showMessage(msgText: NSLocalizedString("deploy_update", comment: ""))
-          // Build all schemas in current directory
           var builderTraits = RimeTraits.rimeStructInit()
           builderTraits.setCString("rime.squirrel-builder", to: \.app_name)
           rimeAPI.setup(&builderTraits)
@@ -86,13 +86,13 @@ struct SquirrelApp {
           _ = rimeAPI.deploy()
           return true
         case "--sync":
-          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelSyncNotification"), object: nil)
+          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelSyncNotification"), object: nil, userInfo: nil, deliverImmediately: true)
           return true
         case "--ascii":
-          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelToggleASCIIModeNotification"), object: "ascii")
+          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelToggleASCIIModeNotification"), object: "ascii", userInfo: nil, deliverImmediately: true)
           return true
         case "--nascii":
-          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelToggleASCIIModeNotification"), object: "nascii")
+          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelToggleASCIIModeNotification"), object: "nascii", userInfo: nil, deliverImmediately: true)
           return true
         case "--getascii":
           var responseReceived = false
@@ -107,7 +107,7 @@ struct SquirrelApp {
               responseReceived = true
             }
           }
-          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelGetASCIIModeNotification"), object: nil)
+          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelGetASCIIModeNotification"), object: nil, userInfo: nil, deliverImmediately: true)
           let timeout = Date().addingTimeInterval(2.0)
           while !responseReceived && Date() < timeout {
             RunLoop.current.run(until: Date().addingTimeInterval(0.01))
@@ -133,18 +133,15 @@ struct SquirrelApp {
     }
 
     autoreleasepool {
-      // find the bundle identifier and then initialize the input method server
       let main = Bundle.main
       let connectionName = main.object(forInfoDictionaryKey: "InputMethodConnectionName") as! String
       _ = IMKServer(name: connectionName, bundleIdentifier: main.bundleIdentifier!)
-      // load the bundle explicitly because in this case the input method is a
-      // background only application
       let app = NSApplication.shared
       let delegate = SquirrelApplicationDelegate()
       app.delegate = delegate
       app.setActivationPolicy(.accessory)
 
-      // opencc will be configured with relative dictionary paths
+      // OpenCC uses relative dictionary paths from SharedSupport.
       FileManager.default.changeCurrentDirectoryPath(main.sharedSupportPath!)
 
       if NSApp.squirrelAppDelegate.problematicLaunchDetected() {
@@ -163,7 +160,6 @@ struct SquirrelApp {
         print("Squirrel reporting!")
       }
 
-      // finally run everything
       app.run()
       print("Squirrel is quitting...")
       rimeAPI.finalize()

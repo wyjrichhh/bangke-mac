@@ -48,10 +48,6 @@ final class SquirrelTheme {
   private var commentTextColor: NSColor? = .secondaryLabelColor
   private var highlightedCommentTextColor: NSColor? = .secondaryLabelColor
   // Semantic comment colors (proposal in rime/squirrel#1124).
-  // Plugins / translators don't pick literal RGB values; instead they tag
-  // candidates by semantic role and the active color scheme owns the actual
-  // values. Both default to nil → fall back to commentTextColor at render
-  // time, so existing themes need no change.
   private(set) var accentCommentTextColor: NSColor?
   private(set) var warningCommentTextColor: NSColor?
 
@@ -77,9 +73,11 @@ final class SquirrelTheme {
   private var fonts = [NSFont]()
   private var labelFonts = [NSFont]()
   private var commentFonts = [NSFont]()
+  private var preeditFonts = [NSFont]()
   private var fontSize: CGFloat?
   private var labelFontSize: CGFloat?
   private var commentFontSize: CGFloat?
+  private var preeditFontSize: CGFloat?
 
   private var _candidateFormat = "[label]. [candidate] [comment]"
   private(set) var statusMessageType: StatusMessageType = .mix
@@ -106,6 +104,15 @@ final class SquirrelTheme {
     if let font = combineFonts(commentFonts, size: commentFontSize ?? fontSize) {
       return font
     } else if let size = commentFontSize {
+      return self.font.withSize(size)
+    } else {
+      return self.font
+    }
+  }()
+  private(set) lazy var preeditFont: NSFont = {
+    if let font = combineFonts(preeditFonts, size: preeditFontSize ?? fontSize) {
+      return font
+    } else if let size = preeditFontSize {
       return self.font.withSize(size)
     } else {
       return self.font
@@ -143,12 +150,12 @@ final class SquirrelTheme {
   ]
   private(set) lazy var preeditAttrs: [NSAttributedString.Key: Any] = [
     .foregroundColor: textColor,
-    .font: font,
+    .font: preeditFont,
     .baselineOffset: baseOffset
   ]
   private(set) lazy var preeditHighlightedAttrs: [NSAttributedString.Key: Any] = [
     .foregroundColor: highlightedTextColor,
-    .font: font,
+    .font: preeditFont,
     .baselineOffset: baseOffset
   ]
 
@@ -228,6 +235,8 @@ final class SquirrelTheme {
     var labelFontSize = config.getDouble("style/label_font_point")
     var commentFontName = config.getString("style/comment_font_face")
     var commentFontSize = config.getDouble("style/comment_font_point")
+    var preeditFontName = config.getString("style/preedit_font_face")
+    var preeditFontSize = config.getDouble("style/preedit_font_point")
 
     let colorSchemeOption = dark ? "style/color_scheme_dark" : "style/color_scheme"
     if let colorScheme = config.getString(colorSchemeOption) {
@@ -253,9 +262,7 @@ final class SquirrelTheme {
         accentCommentTextColor = config.getColor("\(prefix)/accent_text_color", inSpace: colorSpace)
         warningCommentTextColor = config.getColor("\(prefix)/warning_text_color", inSpace: colorSpace)
 
-        // the following per-color-scheme configurations, if exist, will
-        // override configurations with the same name under the global 'style'
-        // section
+        // Per-color-scheme settings override global style settings.
         linear ?= config.getString("\(prefix)/candidate_list_layout").map { $0 == "linear" }
         vertical ?= config.getString("\(prefix)/text_orientation").map { $0 == "vertical" }
         inlinePreedit ?= config.getBool("\(prefix)/inline_preedit")
@@ -270,6 +277,8 @@ final class SquirrelTheme {
         labelFontSize ?= config.getDouble("\(prefix)/label_font_point")
         commentFontName ?= config.getString("\(prefix)/comment_font_face")
         commentFontSize ?= config.getDouble("\(prefix)/comment_font_point")
+        preeditFontName ?= config.getString("\(prefix)/preedit_font_face")
+        preeditFontSize ?= config.getDouble("\(prefix)/preedit_font_point")
 
         alpha ?= config.getDouble("\(prefix)/alpha").map { max(0, min(1, $0)) }
         cornerRadius ?= config.getDouble("\(prefix)/corner_radius")
@@ -292,6 +301,8 @@ final class SquirrelTheme {
     self.labelFontSize = labelFontSize
     commentFonts = decodeFonts(from: commentFontName ?? fontName)
     self.commentFontSize = commentFontSize
+    preeditFonts = decodeFonts(from: preeditFontName ?? fontName)
+    self.preeditFontSize = preeditFontSize
   }
 }
 
