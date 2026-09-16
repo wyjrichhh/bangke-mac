@@ -1,0 +1,70 @@
+patch:
+  # 改用扩展词库(雾凇 rime-ice 核心全拼分片),只换词库不换 schema。
+  # 词典定义见随包分发的 luna_pinyin.extended.dict.yaml(由 postinstall
+  # 连同 cn_dicts/ 分片一起铺到用户 ~/Library/Rime/)。词源 iDvel/rime-ice。
+  translator/dictionary: luna_pinyin.extended
+
+  # 覆盖官方 recognizer/patterns/uppercase。原 [A-Z][-_+.'0-9A-Za-z]*$ 会把
+  # 「大写开头 + 后续小写」整串贪婪匹配成一个 uppercase 段(如 IBMbiru 整个被吞),
+  # 而 uppercase 段没有 translator → 大写英文后的拼音完全无候选(既无 librime 也无 AI)。
+  # 去掉 [a-z] 后, 纯大写缩写(IBM/SSO)仍是独立 raw 段, 后续小写拼音切回 abc 段正常推理。
+  recognizer/patterns/uppercase: "[A-Z][-_+.'0-9A-Z]*$"
+
+  # 默认输出简化字。@2 是朙月拼音的字形开关,四态 [zh_hant, zh_hans,
+  # zh_hant_hk, zh_hant_tw],原始默认无 reset(落 index 0 = 傳統漢字)。
+  # reset: 1 把默认改成 index 1 = 简化字,与简体训练的 CT2 模型对齐。
+  switches/@2/reset: 1
+
+  # translators 必须整列重写: ai_predict_translator 要排在 **首位**,否则
+  # MergedTranslation::Elect 不会先问它(见插件 CLAUDE.md)。Rime 的 list patch
+  # 没有"插入到第 0 位"语法,所以这里把朙月拼音原生的四个 translator 完整列出,
+  # 再在最前面加 ai_predict_translator —— 不能只 append,那样原生的
+  # custom_phrase / reverse_lookup 会被丢掉。
+  engine/translators:
+    - ai_predict_translator       # MUST be first
+    - punct_translator
+    - table_translator@custom_phrase
+    - reverse_lookup_translator
+    - script_translator
+
+  # filters 用 list-append(@next)而不是整列替换!
+  # 朙月拼音原生 filters 是:
+  #   - simplifier@zh_hans        ← 绑定 @2 开关的 zh_hans 选项,执行 t2s 转换
+  #   - simplifier@zh_hant_hk
+  #   - simplifier@zh_hant_tw
+  #   - uniquifier
+  # 之前的模板用裸 `simplifier` 整列替换,删掉了带 @zh_hans 后缀的转换器。
+  # 裸 simplifier 默认监听老开关名 `simplification`,而新版 schema 已无此开关,
+  # 于是转换器永不触发:开关显示"简化字"、实际却输出繁体。改成 @next 只追加
+  # ai_predict_filter,保留原生转换链。
+  'engine/filters/@next': ai_predict_filter
+
+  # 让朙月拼音也支持 emoji: simplifier@emoji 用 opencc emoji.json 把中文词转
+  # emoji, @before 0 插到 filters 最前(在 simplifier@zh_hans 之前)。
+  # emoji.json/emoji.txt/others.txt 随 rime-ice 的 opencc/ 一并铺到
+  # ~/Library/Rime/opencc/(postinstall 处理), 两个方案共用。
+  'engine/filters/@before 0': simplifier@emoji
+
+  switches/@next:
+    name: emoji
+    states: [ 💀, 😄 ]
+    reset: 1
+
+  # 关键: option_name 不写会默认监听 "simplification", 新版 schema 已无此开关
+  # → 转换器永不触发。显式绑定到上面 switches 里新增的 emoji 开关。
+  emoji:
+    option_name: emoji
+    opencc_config: emoji.json
+    inherit_comment: false
+
+  ai_predict:
+    model_path: predict_models/zh-base-ct2-int8
+    min_input_length: 12
+    min_context_prompt_length: 2
+    context_window_size: 10
+    debounce_ms: 200
+    max_tokens: 64
+    device: cpu
+    target_index: 1
+    search_range: 10
+    min_hanzi: 2

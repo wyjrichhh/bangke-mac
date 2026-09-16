@@ -1,0 +1,23 @@
+# Rime dictionary
+# encoding: utf-8
+#
+# 朙月拼音扩展词库 —— 只换词库,不换 schema。
+# 用雾凇拼音(rime-ice)的核心全拼分片替换原版词库,词汇更全、含现代网络用语。
+# 词源: https://github.com/iDvel/rime-ice
+#
+# 分片间设计为互补、不重叠(tencent 头部明确「与 base ext 没有重复」),
+# 因此无需再叠 luna_pinyin,避免了同词同码重复(旧方案有 11380 条重复)。
+# tencent 分片无拼音码,靠 8105 字表自动注音(见 dict_compiler 的 ScriptEncoder),
+# 故 8105 必须排在 import_tables 首位。
+---
+name: luna_pinyin.extended
+version: "2026.08.13"
+sort: by_weight
+use_preset_vocabulary: true
+import_tables:
+  - cn_dicts/8105        # 字表(tencent 自动注音依赖它)
+  - cn_dicts/base        # 基础词库(两字词,含调频)
+  - cn_dicts/ext         # 扩展词库
+  - cn_dicts/tencent     # 腾讯大词库(3字以上,无拼音码,自动注音)
+  - cn_dicts/others      # 杂项
+...

@@ -1,0 +1,6 @@
+patch:
+  schema_list:
+    - schema: luna_pinyin
+    - schema: rime_ice
+  menu/page_size: 5
+  'modules/@next': ai_predict

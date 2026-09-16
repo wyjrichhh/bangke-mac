@@ -1,0 +1,49 @@
+patch:
+  # 雾凇拼音的字形开关 traditionalization 默认 states[0]=简, 且无 reset,
+  # 本身就是简体输出, 与简体训练的 CT2 模型天然对齐, 无需像朙月拼音那样
+  # reset 字形开关。
+
+  # 覆盖官方 recognizer/patterns/uppercase: 原 [A-Z][-_+.'0-9A-Za-z]*$ 会贪婪匹配
+  # 「大写开头 + 后续小写」整串(如 IBMheweiruangongsi), 吞成无 translator 的 uppercase
+  # 段, 导致大写后的拼音完全无候选。去掉 [a-z] 后, 纯大写缩写仍是独立段, 后续小写拼音
+  # 切回 abc 段正常推理(配合插件里的大写剥离)。
+  recognizer/patterns/uppercase: "[A-Z][-_+.'0-9A-Z]*$"
+
+  # translators 必须整列重写: ai_predict_translator 要排在 **首位**, 否则
+  # MergedTranslation::Elect 不会先问它(见插件 CLAUDE.md)。Rime 的 list patch
+  # 没有"插入到第 0 位"语法, 所以这里把雾凇原生的 13 个 translator 完整列出,
+  # 再在最前面加 ai_predict_translator —— 不能只 append, 那样原生的
+  # lua_translator / table_translator 会被丢掉。
+  engine/translators:
+    - ai_predict_translator       # MUST be first
+    - punct_translator
+    - script_translator
+    - lua_translator@*date_translator
+    - lua_translator@*lunar
+    - lua_translator@*uuid
+    - table_translator@custom_phrase
+    - table_translator@melt_eng
+    - table_translator@cn_en
+    - table_translator@radical_lookup
+    - lua_translator@*unicode
+    - lua_translator@*number_translator
+    - lua_translator@*calc_translator
+    - lua_translator@*force_gc
+
+  # filters 用 list-append(@next)而不是整列替换: 雾凇原生的 pin_cand_filter /
+  # long_word_filter / reduce_english_filter 有明确的相对顺序要求(置顶候选项 >
+  # Emoji > 简繁切换), 整列替换会破坏这些位置语义。@next 把 ai_predict_filter
+  # 追加到末尾, 在 uniquifier 去重之后运行, 与插件文档推荐一致。
+  'engine/filters/@next': ai_predict_filter
+
+  ai_predict:
+    model_path: predict_models/zh-base-ct2-int8
+    min_input_length: 12
+    min_context_prompt_length: 2
+    context_window_size: 10
+    debounce_ms: 200
+    max_tokens: 64
+    device: cpu
+    target_index: 1
+    search_range: 10
+    min_hanzi: 2

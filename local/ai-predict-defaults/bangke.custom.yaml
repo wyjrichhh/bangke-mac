@@ -1,0 +1,9 @@
+# 外观默认值。安装时仅在用户没有同名文件时写入（soft-write），
+# 已有用户的字体/主题设置不会被覆盖。
+patch:
+  # 候选横排；bangke.yaml 的出厂值是 stacked（竖排）
+  style/candidate_list_layout: linear
+  # AI 候选注释的强调色（Rime 用 0xBBGGRR 字节序）
+  preset_color_schemes/native/accent_text_color: 0xff8c5a
+  # 不显示菜单栏状态图标，与 Windows 版 display_tray_icon: false 对齐
+  status_icon/show: false
