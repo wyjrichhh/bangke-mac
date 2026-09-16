@@ -1,6 +1,6 @@
 //
 //  MacOSKeyCodes.swift
-//  Squirrel
+//  Bangke
 //
 //  Created by Leo Liu on 5/9/24.
 //
@@ -8,7 +8,7 @@
 import Carbon
 import AppKit
 
-struct SquirrelKeycode {
+struct BangkeKeycode {
 
   static func osxModifiersToRime(modifiers: NSEvent.ModifierFlags) -> UInt32 {
     var ret: UInt32 = 0

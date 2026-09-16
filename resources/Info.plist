@@ -3,19 +3,19 @@
 <plist version="1.0">
 <dict>
 	<key>TISInputSourceID</key>
-	<string>im.rime.inputmethod.Squirrel</string>
+	<string>$(BRAND_BUNDLE_ID)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
+	<key>CFBundleDisplayName</key>
+	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundleExecutable</key>
-	<string>Squirrel</string>
-	<key>CFBundleIconFile</key>
-	<string>RimeIcon.icns</string>
+	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Squirrel</string>
+	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleSignature</key>
@@ -24,16 +24,18 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ComponentInputModeDict</key>
 	<dict>
+		<!-- Xcode 会展开 plist 的值，但不展开 dict 的 key，所以下面两个输入模式
+		     key 只能是字面量。改 BRAND_BUNDLE_ID 后跑 scripts/sync-brand.py 同步。 -->
 		<key>tsInputModeListKey</key>
 		<dict>
-			<key>im.rime.inputmethod.Squirrel.Hans</key>
+			<key>im.bangke.inputmethod.Bangke.Hans</key>
 			<dict>
 				<key>TISInputSourceID</key>
-				<string>im.rime.inputmethod.Squirrel.Hans</string>
+				<string>$(BRAND_BUNDLE_ID).Hans</string>
 				<key>TISIntendedLanguage</key>
 				<string>zh-Hans</string>
 				<key>tsInputModeAlternateMenuIconFileKey</key>
-				<string>rime.pdf</string>
+				<string>bangke.pdf</string>
 				<key>tsInputModeCharacterRepertoireKey</key>
 				<array>
 					<string>Hans</string>
@@ -46,22 +48,22 @@
 				<key>tsInputModeKeyEquivalentModifiersKey</key>
 				<integer>4608</integer>
 				<key>tsInputModeMenuIconFileKey</key>
-				<string>rime.pdf</string>
+				<string>bangke.pdf</string>
 				<key>tsInputModePaletteIconFileKey</key>
-				<string>rime.pdf</string>
+				<string>bangke.pdf</string>
 				<key>tsInputModePrimaryInScriptKey</key>
 				<true/>
 				<key>tsInputModeScriptKey</key>
 				<string>smUnicodeScript</string>
 			</dict>
-			<key>im.rime.inputmethod.Squirrel.Hant</key>
+			<key>im.bangke.inputmethod.Bangke.Hant</key>
 			<dict>
 				<key>TISInputSourceID</key>
-				<string>im.rime.inputmethod.Squirrel.Hant</string>
+				<string>$(BRAND_BUNDLE_ID).Hant</string>
 				<key>TISIntendedLanguage</key>
 				<string>zh-Hant</string>
 				<key>tsInputModeAlternateMenuIconFileKey</key>
-				<string>rime.pdf</string>
+				<string>bangke.pdf</string>
 				<key>tsInputModeCharacterRepertoireKey</key>
 				<array>
 					<string>Hant</string>
@@ -74,9 +76,9 @@
 				<key>tsInputModeKeyEquivalentModifiersKey</key>
 				<integer>4608</integer>
 				<key>tsInputModeMenuIconFileKey</key>
-				<string>rime.pdf</string>
+				<string>bangke.pdf</string>
 				<key>tsInputModePaletteIconFileKey</key>
-				<string>rime.pdf</string>
+				<string>bangke.pdf</string>
 				<key>tsInputModePrimaryInScriptKey</key>
 				<true/>
 				<key>tsInputModeScriptKey</key>
@@ -85,31 +87,29 @@
 		</dict>
 		<key>tsVisibleInputModeOrderedArrayKey</key>
 		<array>
-			<string>im.rime.inputmethod.Squirrel.Hans</string>
-			<string>im.rime.inputmethod.Squirrel.Hant</string>
+			<string>$(BRAND_BUNDLE_ID).Hans</string>
+			<string>$(BRAND_BUNDLE_ID).Hant</string>
 		</array>
 	</dict>
 	<key>InputMethodConnectionName</key>
-	<string>Squirrel_Connection</string>
+	<string>$(BRAND_CONNECTION)</string>
 	<key>InputMethodServerControllerClass</key>
-	<string>Squirrel.SquirrelInputController</string>
+	<string>$(PRODUCT_MODULE_NAME).BangkeInputController</string>
 	<key>InputMethodServerDelegateClass</key>
-	<string>Squirrel.SquirrelInputController</string>
+	<string>$(PRODUCT_MODULE_NAME).BangkeInputController</string>
 	<key>LSBackgroundOnly</key>
 	<false/>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-	<key>SUEnableAutomaticChecks</key>
-	<true/>
-	<key>SUFeedURL</key>
-	<string>https://rime.github.io/release/squirrel/appcast.xml</string>
-	<key>SUPublicEDKey</key>
-	<string>ukvWq2dKOWn3B9AsdsQIwOptiDdDKdUjAVNgFxSvB2o=</string>
+	<key>RimeAppName</key>
+	<string>$(BRAND_RIME_APP)</string>
+	<key>RimeCodeName</key>
+	<string>$(BRAND_CODE_NAME)</string>
+	<key>RimeConfigName</key>
+	<string>$(BRAND_CONFIG)</string>
 	<key>TICapsLockLanguageSwitchCapable</key>
-	<true/>
-	<key>SUEnableInstallerLauncherService</key>
 	<true/>
 </dict>
 </plist>

@@ -1,0 +1,20 @@
+// 品牌单一事实来源。改这里即可换名，Xcode 原生读取，
+// shell 打包脚本经 scripts/brand.sh 读同一份值。
+//
+// 只放 ASCII：用户可见的中文名走 resources/InfoPlist.xcstrings 本地化，
+// Swift 需要时读本地化后的 CFBundleDisplayName（与 Windows 版按 UI 语言
+// 切换「蚌壳拼音 / Bangke Pinyin」的行为一致）。
+//
+// 注意：InfoPlist.xcstrings 的输入源条目以 bundle id 为 key，那是 JSON
+// 本地化目录、不参与 plist 变量展开，改 BRAND_BUNDLE_ID 后必须重跑
+// `python3 scripts/sync-brand.py`。
+
+BRAND_PRODUCT_NAME = BangkePinyin
+BRAND_BUNDLE_ID = im.bangke.inputmethod.Bangke
+BRAND_CONNECTION = BangkePinyin_Connection
+BRAND_RIME_APP = rime.bangke
+BRAND_CONFIG = bangke
+BRAND_CODE_NAME = Bangke
+
+PRODUCT_NAME = $(BRAND_PRODUCT_NAME)
+PRODUCT_BUNDLE_IDENTIFIER = $(BRAND_BUNDLE_ID)

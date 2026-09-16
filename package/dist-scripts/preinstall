@@ -1,0 +1,54 @@
+#!/bin/bash
+#
+# preinstall: 在 @APP_NAME@ 写入前, 安全清理用户 Rime 目录里
+# 与本分发版冲突的配置, 但保留用户的标识/词库/学习记忆.
+#
+# 保留:
+#   installation.yaml   用户的 Rime 安装 ID
+#   user.yaml           用户偏好 (主题/快捷键等)
+#   *.userdb / *.userdb.txt   词库与学习记忆
+#   除 default / luna_pinyin 之外其它方案的 *.custom.yaml
+#
+# 重置:
+#   default.custom.yaml         (会被本版默认配置覆盖)
+#   luna_pinyin.custom.yaml     (本版要接入 ai_predict_translator/filter)
+#   build/                       (旧的 deploy 产物, 让本次重新生成)
+#
+# 整个用户 Rime 目录会先被完整复制到 ~/Library/Rime.backup-<ts>/ 兜底.
+#
+
+set -e
+
+LOGIN_USER=$(/usr/bin/stat -f%Su /dev/console)
+LOGIN_HOME=$(/usr/bin/dscl . -read "/Users/${LOGIN_USER}" NFSHomeDirectory 2>/dev/null | awk '{print $2}')
+[ -n "${LOGIN_HOME}" ] || LOGIN_HOME="/Users/${LOGIN_USER}"
+
+RIME_DIR="${LOGIN_HOME}/Library/Rime"
+LOG_DIR="${LOGIN_HOME}/Library/Logs/BangkePinyin"
+mkdir -p "${LOG_DIR}"
+LOG="${LOG_DIR}/install.log"
+
+echo "[$(date '+%F %T')] preinstall start, user=${LOGIN_USER} home=${LOGIN_HOME}" >> "${LOG}"
+
+if [ -d "${RIME_DIR}" ]; then
+    STAMP=$(date +%Y%m%d-%H%M%S)
+    BACKUP="${LOGIN_HOME}/Library/Rime.backup-${STAMP}"
+
+    echo "[preinstall] backing up ${RIME_DIR} -> ${BACKUP}" >> "${LOG}"
+    /usr/bin/sudo -u "${LOGIN_USER}" /bin/cp -R "${RIME_DIR}" "${BACKUP}"
+
+    for f in default.custom.yaml luna_pinyin.custom.yaml rime_ice.custom.yaml; do
+        if [ -f "${RIME_DIR}/${f}" ]; then
+            echo "[preinstall] removing conflicting ${f}" >> "${LOG}"
+            rm -f "${RIME_DIR}/${f}"
+        fi
+    done
+
+    if [ -d "${RIME_DIR}/build" ]; then
+        echo "[preinstall] removing stale build/ (will be regenerated)" >> "${LOG}"
+        rm -rf "${RIME_DIR}/build"
+    fi
+fi
+
+echo "[$(date '+%F %T')] preinstall done" >> "${LOG}"
+exit 0

@@ -1,6 +1,6 @@
 //
 //  InputSource.swift
-//  Squirrel
+//  Bangke
 //
 //  Created by Leo Liu on 5/10/24.
 //
@@ -8,11 +8,22 @@
 import Foundation
 import InputMethodKit
 
-final class SquirrelInstaller {
-  enum InputMode: String, CaseIterable {
+final class BangkeInstaller {
+  // ID 不在这里写死：顺序即 Info.plist 的 tsVisibleInputModeOrderedArrayKey。
+  enum InputMode: CaseIterable {
     static let primary = Self.hans
-    case hans = "im.rime.inputmethod.Squirrel.Hans"
-    case hant = "im.rime.inputmethod.Squirrel.Hant"
+    case hans
+    case hant
+
+    var inputSourceID: String {
+      let ids = Brand.inputSourceIDs
+      let index = Self.allCases.firstIndex(of: self)!
+      return index < ids.count ? ids[index] : ""
+    }
+
+    static func from(inputSourceID: String) -> InputMode? {
+      allCases.first { $0.inputSourceID == inputSourceID }
+    }
   }
   private lazy var inputSources: [String: TISInputSource] = {
     var inputSources = [String: TISInputSource]()
@@ -42,17 +53,17 @@ final class SquirrelInstaller {
   func register() {
     let enabledInputModes = enabledModes()
     if !enabledInputModes.isEmpty {
-      print("User already registered Squirrel method(s): \(enabledInputModes.map { $0.rawValue })")
+      print("User already registered \(Brand.productName) method(s): \(enabledInputModes.map { $0.inputSourceID })")
       return
     }
-    TISRegisterInputSource(SquirrelApp.appDir as CFURL)
-    print("Registered input source from \(SquirrelApp.appDir)")
+    TISRegisterInputSource(BangkeApp.appDir as CFURL)
+    print("Registered input source from \(BangkeApp.appDir)")
   }
 
   func enable(modes: [InputMode] = []) {
     let enabledInputModes = enabledModes()
     if !enabledInputModes.isEmpty && modes.isEmpty {
-      print("User already enabled Squirrel method(s): \(enabledInputModes.map { $0.rawValue })")
+      print("User already enabled \(Brand.productName) method(s): \(enabledInputModes.map { $0.inputSourceID })")
       // Preserve manually enabled input modes.
       return
     }
@@ -60,7 +71,7 @@ final class SquirrelInstaller {
     for (mode, inputSource) in getInputSource(modes: modesToEnable) {
       if let enabled = getBool(for: inputSource, key: kTISPropertyInputSourceIsEnabled), !enabled {
         let error = TISEnableInputSource(inputSource)
-        print("Enable \(error == noErr ? "succeeds" : "fails") for input source: \(mode.rawValue)")
+        print("Enable \(error == noErr ? "succeeds" : "fails") for input source: \(mode.inputSourceID)")
       }
     }
   }
@@ -72,7 +83,7 @@ final class SquirrelInstaller {
       if mode != nil {
         enable(modes: [modeToSelect])
       } else {
-        print("Default method not enabled yet: \(modeToSelect.rawValue)")
+        print("Default method not enabled yet: \(modeToSelect.inputSourceID)")
         return
       }
     }
@@ -82,9 +93,9 @@ final class SquirrelInstaller {
          let selected = getBool(for: inputSource, key: kTISPropertyInputSourceIsSelected),
          enabled && selectable && !selected {
         let error = TISSelectInputSource(inputSource)
-        print("Selection \(error == noErr ? "succeeds" : "fails") for input source: \(mode.rawValue)")
+        print("Selection \(error == noErr ? "succeeds" : "fails") for input source: \(mode.inputSourceID)")
       } else {
-        print("Failed to select \(mode.rawValue)")
+        print("Failed to select \(mode.inputSourceID)")
       }
     }
   }
@@ -100,7 +111,7 @@ final class SquirrelInstaller {
     for (mode, inputSource) in getInputSource(modes: modesToDisable) {
       if let enabled = getBool(for: inputSource, key: kTISPropertyInputSourceIsEnabled), enabled {
         let error = TISDisableInputSource(inputSource)
-        print("Disable \(error == noErr ? "succeeds" : "fails") for input source: \(mode.rawValue)")
+        print("Disable \(error == noErr ? "succeeds" : "fails") for input source: \(mode.inputSourceID)")
       }
     }
   }
@@ -108,7 +119,7 @@ final class SquirrelInstaller {
   private func getInputSource(modes: [InputMode]) -> [InputMode: TISInputSource] {
     var matchingSources = [InputMode: TISInputSource]()
     for mode in modes {
-      if let inputSource = inputSources[mode.rawValue] {
+      if let inputSource = inputSources[mode.inputSourceID] {
         matchingSources[mode] = inputSource
       }
     }

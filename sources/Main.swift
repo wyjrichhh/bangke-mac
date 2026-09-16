@@ -1,6 +1,6 @@
 //
 //  Main.swift
-//  Squirrel
+//  Bangke
 //
 //  Created by Leo Liu on 5/10/24.
 //
@@ -9,23 +9,22 @@ import Foundation
 import InputMethodKit
 
 @main
-struct SquirrelApp {
+struct BangkeApp {
   static let userDir = if let pwuid = getpwuid(getuid()) {
     URL(fileURLWithFileSystemRepresentation: pwuid.pointee.pw_dir, isDirectory: true, relativeTo: nil).appending(components: "Library", "Rime")
   } else {
     try! FileManager.default.url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: false).appendingPathComponent("Rime", isDirectory: true)
   }
-  static let appDir = "/Library/Input Methods/Squirrel.app".withCString { dir in
-    URL(fileURLWithFileSystemRepresentation: dir, isDirectory: false, relativeTo: nil)
-  }
-  // Use ~/Library/Logs/Squirrel/ instead of TMPDIR so that the log files are
+  // 运行中的 bundle 路径就是安装位置，不必写死 /Library/Input Methods/<name>.app
+  static let appDir = Bundle.main.bundleURL
+  // Use ~/Library/Logs/<product>/ instead of TMPDIR so that the log files are
   // visible from a normal user shell (the IMK sandbox redirects TMPDIR to a
   // location that is not reachable outside the sandbox, which makes debugging
   // very hard — see https://github.com/rime/squirrel/issues for context).
   static let logDir = if let pwuid = getpwuid(getuid()) {
-    URL(fileURLWithFileSystemRepresentation: pwuid.pointee.pw_dir, isDirectory: true, relativeTo: nil).appending(components: "Library", "Logs", "Squirrel")
+    URL(fileURLWithFileSystemRepresentation: pwuid.pointee.pw_dir, isDirectory: true, relativeTo: nil).appending(components: "Library", "Logs", Brand.productName)
   } else {
-    try! FileManager.default.url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("Logs/Squirrel", isDirectory: true)
+    try! FileManager.default.url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("Logs/\(Brand.productName)", isDirectory: true)
   }
 
   // swiftlint:disable:next cyclomatic_complexity
@@ -33,26 +32,26 @@ struct SquirrelApp {
     let rimeAPI: RimeApi_stdbool = rime_get_api_stdbool().pointee
 
     let handled = autoreleasepool {
-      let installer = SquirrelInstaller()
+      let installer = BangkeInstaller()
       let args = CommandLine.arguments
       if args.count > 1 {
         switch args[1] {
         case "--quit":
           let bundleId = Bundle.main.bundleIdentifier!
-          let runningSquirrels = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId)
-          runningSquirrels.forEach { $0.terminate() }
+          let runningBangkes = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId)
+          runningBangkes.forEach { $0.terminate() }
           return true
         case "--reload":
-          // Squirrel is a background app, and AppKit suspends distributed-notification delivery to inactive apps;
-          // deliverImmediately is required for these notifications to reach Squirrel while it stays in the background
-          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelReloadNotification"), object: nil, userInfo: nil, deliverImmediately: true)
+          // Bangke is a background app, and AppKit suspends distributed-notification delivery to inactive apps;
+          // deliverImmediately is required for these notifications to reach Bangke while it stays in the background
+          DistributedNotificationCenter.default().postNotificationName(.init("BangkeReloadNotification"), object: nil, userInfo: nil, deliverImmediately: true)
           return true
         case "--register-input-source", "--install":
           installer.register()
           return true
         case "--enable-input-source":
           if args.count > 2 {
-            let modes = args[2...].map { SquirrelInstaller.InputMode(rawValue: $0) }.compactMap { $0 }
+            let modes = args[2...].map { BangkeInstaller.InputMode.from(inputSourceID: $0) }.compactMap { $0 }
             if !modes.isEmpty {
               installer.enable(modes: modes)
               return true
@@ -62,7 +61,7 @@ struct SquirrelApp {
           return true
         case "--disable-input-source":
           if args.count > 2 {
-            let modes = args[2...].map { SquirrelInstaller.InputMode(rawValue: $0) }.compactMap { $0 }
+            let modes = args[2...].map { BangkeInstaller.InputMode.from(inputSourceID: $0) }.compactMap { $0 }
             if !modes.isEmpty {
               installer.disable(modes: modes)
               return true
@@ -71,34 +70,34 @@ struct SquirrelApp {
           installer.disable()
           return true
         case "--select-input-source":
-          if args.count > 2, let mode = SquirrelInstaller.InputMode(rawValue: args[2]) {
+          if args.count > 2, let mode = BangkeInstaller.InputMode.from(inputSourceID: args[2]) {
             installer.select(mode: mode)
           } else {
             installer.select()
           }
           return true
         case "--build":
-          SquirrelApplicationDelegate.showMessage(msgText: NSLocalizedString("deploy_update", comment: ""))
+          BangkeApplicationDelegate.showMessage(msgText: NSLocalizedString("deploy_update", comment: ""))
           var builderTraits = RimeTraits.rimeStructInit()
-          builderTraits.setCString("rime.squirrel-builder", to: \.app_name)
+          builderTraits.setCString("rime.bangke-builder", to: \.app_name)
           rimeAPI.setup(&builderTraits)
           rimeAPI.deployer_initialize(nil)
           _ = rimeAPI.deploy()
           return true
         case "--sync":
-          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelSyncNotification"), object: nil, userInfo: nil, deliverImmediately: true)
+          DistributedNotificationCenter.default().postNotificationName(.init("BangkeSyncNotification"), object: nil, userInfo: nil, deliverImmediately: true)
           return true
         case "--ascii":
-          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelToggleASCIIModeNotification"), object: "ascii", userInfo: nil, deliverImmediately: true)
+          DistributedNotificationCenter.default().postNotificationName(.init("BangkeToggleASCIIModeNotification"), object: "ascii", userInfo: nil, deliverImmediately: true)
           return true
         case "--nascii":
-          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelToggleASCIIModeNotification"), object: "nascii", userInfo: nil, deliverImmediately: true)
+          DistributedNotificationCenter.default().postNotificationName(.init("BangkeToggleASCIIModeNotification"), object: "nascii", userInfo: nil, deliverImmediately: true)
           return true
         case "--getascii":
           var responseReceived = false
           var asciiStatus = ""
           let observer = DistributedNotificationCenter.default().addObserver(
-            forName: .init("SquirrelASCIIModeResponse"),
+            forName: .init("BangkeASCIIModeResponse"),
             object: nil,
             queue: .main
           ) { notification in
@@ -107,7 +106,7 @@ struct SquirrelApp {
               responseReceived = true
             }
           }
-          DistributedNotificationCenter.default().postNotificationName(.init("SquirrelGetASCIIModeNotification"), object: nil, userInfo: nil, deliverImmediately: true)
+          DistributedNotificationCenter.default().postNotificationName(.init("BangkeGetASCIIModeNotification"), object: nil, userInfo: nil, deliverImmediately: true)
           let timeout = Date().addingTimeInterval(2.0)
           while !responseReceived && Date() < timeout {
             RunLoop.current.run(until: Date().addingTimeInterval(0.01))
@@ -137,16 +136,16 @@ struct SquirrelApp {
       let connectionName = main.object(forInfoDictionaryKey: "InputMethodConnectionName") as! String
       _ = IMKServer(name: connectionName, bundleIdentifier: main.bundleIdentifier!)
       let app = NSApplication.shared
-      let delegate = SquirrelApplicationDelegate()
+      let delegate = BangkeApplicationDelegate()
       app.delegate = delegate
       app.setActivationPolicy(.accessory)
 
       // OpenCC uses relative dictionary paths from SharedSupport.
       FileManager.default.changeCurrentDirectoryPath(main.sharedSupportPath!)
 
-      if NSApp.squirrelAppDelegate.problematicLaunchDetected() {
+      if NSApp.bangkeAppDelegate.problematicLaunchDetected() {
         print("Problematic launch detected!")
-        let args = ["Problematic launch detected! Squirrel may be suffering a crash due to improper configuration. Revert previous modifications to see if the problem recurs."]
+        let args = ["Problematic launch detected! \(Brand.productName) may be suffering a crash due to improper configuration. Revert previous modifications to see if the problem recurs."]
         let task = Process()
         task.executableURL = "/usr/bin/say".withCString { dir in
           URL(fileURLWithFileSystemRepresentation: dir, isDirectory: false, relativeTo: nil)
@@ -154,14 +153,14 @@ struct SquirrelApp {
         task.arguments = args
         try? task.run()
       } else {
-        NSApp.squirrelAppDelegate.setupRime()
-        NSApp.squirrelAppDelegate.startRime(fullCheck: false)
-        NSApp.squirrelAppDelegate.loadSettings()
-        print("Squirrel reporting!")
+        NSApp.bangkeAppDelegate.setupRime()
+        NSApp.bangkeAppDelegate.startRime(fullCheck: false)
+        NSApp.bangkeAppDelegate.loadSettings()
+        print("\(Brand.productName) reporting!")
       }
 
       app.run()
-      print("Squirrel is quitting...")
+      print("\(Brand.productName) is quitting...")
       rimeAPI.finalize()
     }
     return
@@ -170,14 +169,14 @@ struct SquirrelApp {
   static let helpDoc = """
 Supported arguments:
 Perform actions:
-  --quit                     quit all Squirrel process
+  --quit                     quit all \(Brand.productName) process
   --reload                   deploy
   --sync                     sync user data
   --build                    build all schemas in current directory
   --ascii                    turn on ASCII mode
   --nascii                   turn off ASCII mode
   --getascii                 get current ASCII mode status
-Install Squirrel:
+Install \(Brand.productName):
   --install, --register-input-source    register input source
   --enable-input-source [source id...]  input source list optional
   --disable-input-source [source id...] input source list optional

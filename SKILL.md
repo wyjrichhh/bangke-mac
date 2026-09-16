@@ -1,35 +1,35 @@
 ---
-name: squirrel-input-method-architecture
-description: Understand and modify the Squirrel macOS input method frontend. Use this when working on input handling, librime sessions, candidate UI, configuration, lifecycle, installer commands, or backend/frontend coordination in this repository.
+name: bangke-input-method-architecture
+description: Understand and modify the Bangke macOS input method frontend. Use this when working on input handling, librime sessions, candidate UI, configuration, lifecycle, installer commands, or backend/frontend coordination in this repository.
 ---
 
-# Squirrel Input Method Architecture Skill
+# Bangke Input Method Architecture Skill
 
-Use this skill when making changes to Squirrel, a macOS InputMethodKit frontend for librime. Squirrel is an input method, so correctness depends on event ordering, session lifetime, marked text behavior, candidate window geometry, and clean handoff between the macOS text client and librime.
+Use this skill when making changes to Bangke, a macOS InputMethodKit frontend for librime. Bangke is an input method, so correctness depends on event ordering, session lifetime, marked text behavior, candidate window geometry, and clean handoff between the macOS text client and librime.
 
 ## Repository Map
 
-The Xcode project is organized around one app target, `Squirrel.app`, plus bundled resources and librime plugins.
+The Xcode project is organized around one app target, `BangkePinyin.app`, plus bundled resources and librime plugins.
 
-- `Squirrel/Sources/Main.swift`: process entry point, command-line maintenance commands, IMK server creation, app setup, and global librime startup.
-- `Squirrel/Sources/SquirrelApplicationDelegate.swift`: app-wide state. Owns the candidate panel, global `SquirrelConfig`, status item, Sparkle update integration, distributed notifications, and librime setup/finalization.
-- `Squirrel/Sources/SquirrelInputController.swift`: the main InputMethodKit controller. Owns one active librime session per controller instance, receives key events, translates macOS events to Rime key events, commits text, updates marked text, and drives the candidate panel.
-- `Squirrel/Sources/MacOSKeyCodes.swift`: maps AppKit/Carbon key codes and modifier flags to librime/X11 key symbols and masks.
-- `Squirrel/Sources/SquirrelConfig.swift`: thin typed wrapper over `RimeConfig`, with base config/schema fallback and cached option reads.
-- `Squirrel/Sources/SquirrelTheme.swift`: converts Rime/Squirrel style configuration into fonts, colors, layout flags, candidate formatting, and drawing attributes.
-- `Squirrel/Sources/SquirrelPanel.swift`: nonactivating candidate/status panel. Builds attributed candidate text, positions the panel near the text cursor, handles paging/candidate mouse events, and delegates selection actions back to the input controller.
-- `Squirrel/Sources/SquirrelView.swift`: custom AppKit drawing surface for candidate/preedit backgrounds, highlights, paging affordances, vertical text, and hit testing.
-- `Squirrel/Sources/ReservedProperty.swift`: reserved librime plugin property protocol for frontend UI hints such as comment highlighting and UI refresh.
-- `Squirrel/Sources/BridgingFunctions.swift`: Swift helpers for C bridge structs, persistent C strings, optional assignment, and geometry utilities.
-- `Squirrel/Sources/InputSource.swift`: Text Input Source registration, enable/disable/select helpers, and current input source lookup.
-- `Squirrel/Resources/Info.plist`: InputMethodKit registration metadata, input modes (`Hans`, `Hant`), IMK controller class names, connection name, Sparkle metadata, and input-source properties.
-- `Squirrel/Resources/Squirrel.entitlements`: disables App Sandbox, enables network client access, and disables library validation for bundled dylibs/frameworks.
-- `Squirrel/SharedSupport`: bundled Rime data, default schemas, OpenCC data, and `squirrel.yaml`.
-- `Squirrel/librime-*.dylib`, `Squirrel/Frameworks/Linked Frameworks/librime.1.dylib`: backend libraries and plugins used by the frontend.
+- `sources/Main.swift`: process entry point, command-line maintenance commands, IMK server creation, app setup, and global librime startup.
+- `sources/BangkeApplicationDelegate.swift`: app-wide state. Owns the candidate panel, global `BangkeConfig`, status item, Sparkle update integration, distributed notifications, and librime setup/finalization.
+- `sources/BangkeInputController.swift`: the main InputMethodKit controller. Owns one active librime session per controller instance, receives key events, translates macOS events to Rime key events, commits text, updates marked text, and drives the candidate panel.
+- `sources/MacOSKeyCodes.swift`: maps AppKit/Carbon key codes and modifier flags to librime/X11 key symbols and masks.
+- `sources/BangkeConfig.swift`: thin typed wrapper over `RimeConfig`, with base config/schema fallback and cached option reads.
+- `sources/BangkeTheme.swift`: converts Rime/Bangke style configuration into fonts, colors, layout flags, candidate formatting, and drawing attributes.
+- `sources/BangkePanel.swift`: nonactivating candidate/status panel. Builds attributed candidate text, positions the panel near the text cursor, handles paging/candidate mouse events, and delegates selection actions back to the input controller.
+- `sources/BangkeView.swift`: custom AppKit drawing surface for candidate/preedit backgrounds, highlights, paging affordances, vertical text, and hit testing.
+- `sources/ReservedProperty.swift`: reserved librime plugin property protocol for frontend UI hints such as comment highlighting and UI refresh.
+- `sources/BridgingFunctions.swift`: Swift helpers for C bridge structs, persistent C strings, optional assignment, and geometry utilities.
+- `sources/InputSource.swift`: Text Input Source registration, enable/disable/select helpers, and current input source lookup.
+- `resources/Info.plist`: InputMethodKit registration metadata, input modes (`Hans`, `Hant`), IMK controller class names, connection name, Sparkle metadata, and input-source properties.
+- `resources/Bangke.entitlements`: disables App Sandbox, enables network client access, and disables library validation for bundled dylibs/frameworks.
+- `Contents/SharedSupport`: bundled Rime data, default schemas, OpenCC data, and `bangke.yaml`.
+- `lib/rime-plugins/librime-*.dylib`, `Frameworks/librime.1.dylib`: backend libraries and plugins used by the frontend.
 
 ## Process Startup
 
-`SquirrelApp.main()` is the only entry point.
+`BangkeApp.main()` is the only entry point.
 
 1. It first checks command-line arguments and exits early for maintenance commands:
    - `--quit`, `--reload`, `--sync`
@@ -38,7 +38,7 @@ The Xcode project is organized around one app target, `Squirrel.app`, plus bundl
    - `--build`
    - `--ascii`, `--nascii`, `--getascii`
 2. If no maintenance command is handled, it creates an `IMKServer` using `InputMethodConnectionName` from `Info.plist`.
-3. It creates `NSApplication.shared`, assigns `SquirrelApplicationDelegate`, sets accessory activation policy, and changes the current directory to `Bundle.main.sharedSupportPath`. This is important because OpenCC/librime configuration may use relative dictionary paths.
+3. It creates `NSApplication.shared`, assigns `BangkeApplicationDelegate`, sets accessory activation policy, and changes the current directory to `Bundle.main.sharedSupportPath`. This is important because OpenCC/librime configuration may use relative dictionary paths.
 4. It runs a quick problematic-launch detector to avoid repeated crash/freeze loops from bad configuration.
 5. Normal startup calls:
    - `setupRime()`
@@ -49,16 +49,16 @@ The Xcode project is organized around one app target, `Squirrel.app`, plus bundl
 
 ## Global Librime Initialization
 
-`SquirrelApplicationDelegate` owns global librime setup.
+`BangkeApplicationDelegate` owns global librime setup.
 
 - `setupRime()` creates the user data directory (`~/Library/Rime`) and temporary log directory, sets `RIME_LOG_DIR`, installs librime's notification handler, fills `RimeTraits`, and calls `rimeAPI.setup(&traits)`.
 - Important trait paths and identity fields:
   - `shared_data_dir`: app bundle shared support path.
   - `user_data_dir`: `~/Library/Rime`.
-  - `log_dir`: temporary `rime.squirrel` directory.
-  - distribution code/name/version and `app_name = rime.squirrel`.
-- `startRime(fullCheck:)` calls `rimeAPI.initialize(nil)`, then `start_maintenance(fullCheck)`. On successful maintenance it deploys `squirrel.yaml` with the `config_version` marker.
-- `loadSettings()` opens base `squirrel` config, refreshes notification/status-icon settings, and loads light/dark panel themes.
+  - `log_dir`: temporary `rime.bangke` directory.
+  - distribution code/name/version and `app_name = rime.bangke`.
+- `startRime(fullCheck:)` calls `rimeAPI.initialize(nil)`, then `start_maintenance(fullCheck)`. On successful maintenance it deploys `bangke.yaml` with the `config_version` marker.
+- `loadSettings()` opens base `bangke` config, refreshes notification/status-icon settings, and loads light/dark panel themes.
 - `loadSettings(for schemaID:)` opens the active schema config and, when it has a `style` section, overlays schema-specific panel style. Otherwise it falls back to base config.
 - `shutdownRime()` closes config and calls `rimeAPI.finalize()`.
 - `applicationShouldTerminate(_:)` calls `cleanup_all_sessions()` before termination.
@@ -67,7 +67,7 @@ Do not initialize/finalize librime from individual input controllers. Controller
 
 ## Input Controller Lifecycle
 
-`SquirrelInputController` subclasses `IMKInputController` and is the core input-method object.
+`BangkeInputController` subclasses `IMKInputController` and is the core input-method object.
 
 - `init(server:delegate:client:)` stores the initial `IMKTextInput` client, calls `createSession()`, and registers local notification observers for ASCII-mode set/report requests.
 - `createSession()` chooses a client bundle identifier, creates a librime session with `rimeAPI.create_session()`, clears `schemaId`, and applies app-specific options.
@@ -81,14 +81,14 @@ The controller keeps `client` weak. Always guard client access. An input method 
 
 ## Input Update Loop
 
-The critical loop is `handle(_:client:) -> Bool` in `SquirrelInputController`.
+The critical loop is `handle(_:client:) -> Bool` in `BangkeInputController`.
 
 1. Ensure there is a valid librime session. If `session == 0` or `find_session(session)` fails, call `createSession()`.
 2. Update the weak `IMKTextInput` client from `sender` when possible.
-3. Detect client app bundle ID changes and apply `app_options/<bundle-id>` from `squirrel.yaml`.
+3. Detect client app bundle ID changes and apply `app_options/<bundle-id>` from `bangke.yaml`.
 4. For `.flagsChanged`:
    - Compute changed modifier flags by comparing with `lastModifiers`.
-   - Convert modifiers with `SquirrelKeycode.osxModifiersToRime`.
+   - Convert modifiers with `BangkeKeycode.osxModifiersToRime`.
    - Validate or infer modifier keycode. This protects against remote desktop tools sending bogus keycode 0 for modifier events.
    - Handle caps lock specially because librime expects `XK_Caps_Lock` before lock-mask state changes.
    - Process modifier releases before presses to handle delayed release events.
@@ -137,7 +137,7 @@ Main sequence:
 
 The text path is:
 
-`NSEvent` -> `SquirrelInputController.handle` -> `processKey` -> `rimeAPI.process_key` -> `rimeUpdate` -> `get_commit`/`get_status`/`get_context` -> `client.insertText` and/or `client.setMarkedText` plus `SquirrelPanel.update`.
+`NSEvent` -> `BangkeInputController.handle` -> `processKey` -> `rimeAPI.process_key` -> `rimeUpdate` -> `get_commit`/`get_status`/`get_context` -> `client.insertText` and/or `client.setMarkedText` plus `BangkePanel.update`.
 
 ## Marked Text and Commit Rules
 
@@ -151,21 +151,21 @@ Input methods must be conservative about when they consume events. Incorrect `tr
 
 ## Candidate Panel Flow
 
-The app delegate creates one shared `SquirrelPanel` during `applicationWillFinishLaunching`. The active input controller assigns itself to `panel.inputController` before updating the panel.
+The app delegate creates one shared `BangkePanel` during `applicationWillFinishLaunching`. The active input controller assigns itself to `panel.inputController` before updating the panel.
 
 `showPanel(...)` gets cursor geometry from `client.attributes(forCharacterIndex:lineHeightRectangle:)`, stores it in `panel.position`, and calls `panel.update(...)`.
 
-`SquirrelPanel.update(...)`:
+`BangkePanel.update(...)`:
 
 - stores the latest preedit/candidate state;
 - builds a single attributed string containing preedit and candidate rows;
 - applies theme attributes, candidate labels, comments, semantic comment colors, no-break hints, and paragraph styles;
 - updates the `NSTextView` storage and layout orientation;
 - forces TextKit layout before measuring geometry;
-- calls `SquirrelView.drawView(...)` for background/highlight paths;
+- calls `BangkeView.drawView(...)` for background/highlight paths;
 - calls `show()` to position and display the panel.
 
-`SquirrelPanel.show()`:
+`BangkePanel.show()`:
 
 - chooses screen based on cursor position;
 - sets effective appearance;
@@ -184,7 +184,7 @@ Mouse and scroll events on the panel are forwarded back to the input controller:
 
 ## Custom Drawing
 
-`SquirrelView` owns the drawing and hit-testing model.
+`BangkeView` owns the drawing and hit-testing model.
 
 - It uses an `NSTextView` with TextKit 2 layout to measure actual rendered text segments.
 - `contentRect` and `contentRect(range:)` enumerate text layout segments to compute bounds.
@@ -196,14 +196,14 @@ When changing panel layout, preserve the order: set attributed text, set layout 
 
 ## Configuration Model
 
-`SquirrelConfig` is a typed facade over `RimeConfig`.
+`BangkeConfig` is a typed facade over `RimeConfig`.
 
-- `openBaseConfig()` opens `squirrel` config.
+- `openBaseConfig()` opens `bangke` config.
 - `open(schemaID:baseConfig:)` opens schema config and falls back to base config for missing values.
 - `getBool`, `getDouble`, `getString`, and `getColor` cache successful reads.
 - `getAppOptions(_:)` reads boolean options under `app_options/<bundle-id>`.
 
-`SquirrelTheme.load(config:dark:)` reads global `style/*`, then optional preset color scheme settings. Per-color-scheme values can override style values for layout, color, fonts, alpha, spacing, and candidate formatting.
+`BangkeTheme.load(config:dark:)` reads global `style/*`, then optional preset color scheme settings. Per-color-scheme values can override style values for layout, color, fonts, alpha, spacing, and candidate formatting.
 
 Important theme flags:
 
@@ -217,13 +217,13 @@ Important theme flags:
 
 The app uses distributed notifications for process-to-running-instance commands.
 
-- `SquirrelReloadNotification` -> deploy: shutdown Rime, reinitialize, reload settings.
-- `SquirrelSyncNotification` -> `sync_user_data()`.
-- `SquirrelToggleASCIIModeNotification` -> posts local `SquirrelSetASCIIModeNotification` with `Bool`.
-- `SquirrelGetASCIIModeNotification` -> posts local report request; active controller responds with `SquirrelASCIIModeResponse` (`ascii` or `nascii`).
+- `BangkeReloadNotification` -> deploy: shutdown Rime, reinitialize, reload settings.
+- `BangkeSyncNotification` -> `sync_user_data()`.
+- `BangkeToggleASCIIModeNotification` -> posts local `BangkeSetASCIIModeNotification` with `Bool`.
+- `BangkeGetASCIIModeNotification` -> posts local report request; active controller responds with `BangkeASCIIModeResponse` (`ascii` or `nascii`).
 - `kTISNotifySelectedKeyboardInputSourceChanged` -> updates status item visibility and finalizes stranded compositions.
 
-The finalization fallback is important: some macOS/input-source switch paths may not call `deactivateServer`. When the selected input source no longer starts with `im.rime.inputmethod.Squirrel`, the app delegate calls `deactivateServer` on the panel's current input controller to avoid orphaned composition/panel state.
+The finalization fallback is important: some macOS/input-source switch paths may not call `deactivateServer`. When the selected input source no longer starts with `im.bangke.inputmethod.Bangke`, the app delegate calls `deactivateServer` on the panel's current input controller to avoid orphaned composition/panel state.
 
 ## Librime Notification Handler
 
@@ -244,10 +244,10 @@ Reserved-property values are query-string compatible; bare comma lists are parse
 
 ## Installer and Input Source Registration
 
-`SquirrelInstaller` wraps Text Input Source Services.
+`BangkeInstaller` wraps Text Input Source Services.
 
-- Input modes are `im.rime.inputmethod.Squirrel.Hans` and `im.rime.inputmethod.Squirrel.Hant`; `Hans` is the primary default.
-- `register()` calls `TISRegisterInputSource` for `/Library/Input Library/Squirrel.app` when no Squirrel modes are already enabled.
+- Input modes are `im.bangke.inputmethod.Bangke.Hans` and `im.bangke.inputmethod.Bangke.Hant`; `Hans` is the primary default.
+- `register()` calls `TISRegisterInputSource` for `/Library/Input Library/BangkePinyin.app` when no Bangke modes are already enabled.
 - `enable`, `disable`, and `select` operate on TIS input sources.
 - `currentInputSourceID()` reads `TISCopyCurrentKeyboardInputSource()` and is used to control status item visibility and stranded-composition cleanup.
 
@@ -266,16 +266,16 @@ The Swift/C boundary uses generated librime types plus helpers in `BridgingFunct
 
 Follow the existing Swift/AppKit style unless there is a strong local reason to do otherwise.
 
-- Types use PascalCase: `SquirrelInputController`, `ReservedPropertyValue`, `SquirrelTheme`.
+- Types use PascalCase: `BangkeInputController`, `ReservedPropertyValue`, `BangkeTheme`.
 - Methods, properties, local variables, and enum cases use camelCase.
 - Keep local acronym style consistent with nearby code: `rimeAPI`, `schemaId`, `currentApp`, `asciiMode`.
 - Boolean names should read naturally with `is`, `has`, `can`, `should`, or a clear state noun when the existing API already uses one.
 - Generated C bridge fields may keep snake_case names such as `data_size`; use narrow SwiftLint suppressions rather than renaming generated API concepts.
 - Prefer `let` for values that do not change, `private` for implementation details, and `private(set)` when other types need read-only state.
-- Keep IMK lifecycle and event handling in `SquirrelInputController`; keep global Rime/app lifetime in `SquirrelApplicationDelegate`.
-- Keep config access in `SquirrelConfig` and configurable visual state in `SquirrelTheme`.
+- Keep IMK lifecycle and event handling in `BangkeInputController`; keep global Rime/app lifetime in `BangkeApplicationDelegate`.
+- Keep config access in `BangkeConfig` and configurable visual state in `BangkeTheme`.
 - Keep key translation in `MacOSKeyCodes`; do not scatter raw Carbon/Rime key mappings through input handling code.
-- Keep candidate panel state and positioning in `SquirrelPanel`; keep drawing, geometry, and hit testing in `SquirrelView`.
+- Keep candidate panel state and positioning in `BangkePanel`; keep drawing, geometry, and hit testing in `BangkeView`.
 
 Reuse existing helpers before adding new abstractions.
 
@@ -284,7 +284,7 @@ Reuse existing helpers before adding new abstractions.
 - Use the `?=` operator for optional config overrides in theme/config-loading code.
 - Use `NSRange.empty` for the project's sentinel empty range.
 - Use `RimeStringSlice.asString` for Rime slices because it respects the slice length.
-- Use `SquirrelKeycode` for macOS-to-Rime key conversion.
+- Use `BangkeKeycode` for macOS-to-Rime key conversion.
 - Extend `ReservedPropertyValue` for reserved-property parsing instead of adding one-off string parsing.
 - Add a shared helper only when multiple call sites need the same non-trivial behavior. Avoid wrapping a single straightforward expression.
 
@@ -319,35 +319,35 @@ Keep these invariants in mind for any change:
 
 For key handling changes:
 
-1. Start in `SquirrelInputController.handle` and `processKey`.
+1. Start in `BangkeInputController.handle` and `processKey`.
 2. Put reusable key mappings in `MacOSKeyCodes.swift`.
 3. Preserve modifier ordering and caps-lock behavior.
 4. Verify event consumption semantics.
 
 For candidate UI changes:
 
-1. Start in `SquirrelPanel.update` for text/attributes/data shaping.
-2. Use `SquirrelTheme` for configurable style values.
-3. Use `SquirrelView` for geometry, drawing, and hit testing.
+1. Start in `BangkePanel.update` for text/attributes/data shaping.
+2. Use `BangkeTheme` for configurable style values.
+3. Use `BangkeView` for geometry, drawing, and hit testing.
 4. Test horizontal, linear, vertical, paging, inline preedit, and no-candidate states.
 
 For config changes:
 
-1. Add reads in `SquirrelTheme` or `SquirrelConfig` only where the value belongs.
+1. Add reads in `BangkeTheme` or `BangkeConfig` only where the value belongs.
 2. Keep base config and schema-specific fallback behavior intact.
 3. Consider dark/light theme loading separately.
 
 For lifecycle or command changes:
 
 1. Start in `Main.swift` for command-line behavior.
-2. Start in `SquirrelApplicationDelegate` for app-global observers, Rime setup, status item behavior, and termination.
+2. Start in `BangkeApplicationDelegate` for app-global observers, Rime setup, status item behavior, and termination.
 3. Keep distributed notification names stable unless all callers are updated.
 
 For librime plugin/frontend coordination:
 
 1. Add reserved keys to `ReservedPropertyKey`.
 2. Parse values in `ReservedPropertyValue` or in `handleReservedProperty`.
-3. Apply UI effects in `SquirrelInputController` or `SquirrelPanel`, depending on whether the state belongs to the session or rendering.
+3. Apply UI effects in `BangkeInputController` or `BangkePanel`, depending on whether the state belongs to the session or rendering.
 4. Preserve `_refresh_ui` behavior for plugin-driven redraws.
 
 ## Validation Checklist

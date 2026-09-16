@@ -1,7 +1,7 @@
-Squirrel.xcodeproj/*.mode1v3
-Squirrel.xcodeproj/*.pbxuser
-Squirrel.xcodeproj/project.xcworkspace/
-Squirrel.xcodeproj/xcuserdata/
+Bangke.xcodeproj/*.mode1v3
+Bangke.xcodeproj/*.pbxuser
+Bangke.xcodeproj/project.xcworkspace/
+Bangke.xcodeproj/xcuserdata/
 build/
 build.log
 Frameworks/*
@@ -10,7 +10,7 @@ lib/*
 data/opencc/
 data/plum/
 download/
-package/Squirrel*.pkg
+package/*.pkg
 package/sign/*.pem
 package/test-*
 package/generate_keys

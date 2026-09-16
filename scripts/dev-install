@@ -1,0 +1,30 @@
+#!/bin/bash
+set -e
+
+# 本机调试直装用的钩子（make install / make install-debug），不走 pkg。
+# 正式分发走 `bash package/build-pkg`，它的安装钩子在 package/dist-scripts/。
+# 这里只做最小必要动作：注册 / 部署 / 启用 / 选中，不备份也不改用户配置。
+
+app_name="${APP_NAME:-$(bash "$(dirname "$0")/brand.sh" APP_NAME)}"
+bundle_id="${BUNDLE_ID:-$(bash "$(dirname "$0")/brand.sh" BRAND_BUNDLE_ID)}"
+
+login_user=`/usr/bin/stat -f%Su /dev/console`
+app_root="${DSTROOT}/Library/Input Methods/${app_name}"
+app_executable="${app_root}/Contents/MacOS/${app_name%.app}"
+rime_shared_data_path="${app_root}/Contents/SharedSupport"
+
+# 只结束本输入法自己的进程，不碰系统里其它输入法
+/usr/bin/sudo -u "${login_user}" /usr/bin/killall "${app_name%.app}" > /dev/null || true
+
+"${app_executable}" --register-input-source
+
+if [ -z "${RIME_NO_PREBUILD}" ]; then
+    pushd "${rime_shared_data_path}" > /dev/null
+    "${app_executable}" --build
+    popd > /dev/null
+fi && (
+    /usr/bin/sudo -u "${login_user}" "${app_executable}" --enable-input-source
+    /usr/bin/sudo -u "${login_user}" "${app_executable}" --select-input-source
+)
+
+echo "Installed ${app_name} (${bundle_id}) to ${DSTROOT}/Library/Input Methods"

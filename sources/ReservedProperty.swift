@@ -1,6 +1,6 @@
 //
 //  ReservedProperty.swift
-//  Squirrel
+//  Bangke
 //
 
 import Foundation

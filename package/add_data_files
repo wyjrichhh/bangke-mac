@@ -2,7 +2,7 @@
 
 set -e
 
-project_file=Squirrel.xcodeproj/project.pbxproj
+project_file=Bangke.xcodeproj/project.pbxproj
 test -f "${project_file}"
 
 # 定義固定的錨點資訊（保持與原專案文件一致，供 sed 尋找定位）

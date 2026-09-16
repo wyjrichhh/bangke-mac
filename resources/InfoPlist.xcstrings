@@ -7,19 +7,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Squirrel"
+            "value" : "Bangke Pinyin"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "鼠须管"
+            "value" : "蚌壳拼音"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "鼠鬚管"
+            "value" : "蚌殼拼音"
           }
         }
       }
@@ -31,88 +31,88 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Squirrel"
+            "value" : "Bangke Pinyin"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "鼠须管"
+            "value" : "蚌壳拼音"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "鼠鬚管"
+            "value" : "蚌殼拼音"
           }
         }
       }
     },
-    "im.rime.inputmethod.Squirrel" : {
+    "im.bangke.inputmethod.Bangke" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Squirrel"
+            "value" : "Bangke Pinyin"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "鼠须管"
+            "value" : "蚌壳拼音"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "鼠鬚管"
+            "value" : "蚌殼拼音"
           }
         }
       }
     },
-    "im.rime.inputmethod.Squirrel.Hans" : {
+    "im.bangke.inputmethod.Bangke.Hans" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Squirrel - Simplified"
+            "value" : "Bangke Pinyin - Simplified"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "鼠须管"
+            "value" : "蚌壳拼音"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "鼠须管"
+            "value" : "蚌殼拼音"
           }
         }
       }
     },
-    "im.rime.inputmethod.Squirrel.Hant" : {
+    "im.bangke.inputmethod.Bangke.Hant" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Squirrel - Traditional"
+            "value" : "Bangke Pinyin - Traditional"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "鼠鬚管"
+            "value" : "蚌壳拼音"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "鼠鬚管"
+            "value" : "蚌殼拼音"
           }
         }
       }

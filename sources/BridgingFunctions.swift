@@ -1,6 +1,6 @@
 //
 //  BridgingFunctions.swift
-//  Squirrel
+//  Bangke
 //
 //  Created by Leo Liu on 5/11/24.
 //

@@ -1,247 +1,253 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "A new update is available" : {
-      "comment" : "Update",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "有新版本"
+  "sourceLanguage": "en",
+  "strings": {
+    "A new update is available": {
+      "comment": "Update",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有新版本"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "有新版本"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有新版本"
           }
         }
       }
     },
-    "Check for updates..." : {
-      "comment" : "Menu item",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "检查新版本..."
+    "Bangke": {
+      "comment": "Menu title",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bangke Pinyin"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "檢查新版本..."
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "蚌壳拼音"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "蚌殼拼音"
           }
         }
       }
     },
-    "Deploy" : {
-      "comment" : "Menu item",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新部署"
+    "Check for updates...": {
+      "comment": "Menu item",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查新版本..."
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新部署"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "檢查新版本..."
           }
         }
       }
     },
-    "deploy_failure" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Error occurred. Please check log files"
+    "Deploy": {
+      "comment": "Menu item",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新部署"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "有错误！请查看日志"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "有錯誤！請查看日誌"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新部署"
           }
         }
       }
     },
-    "deploy_start" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deploying Rime input method engine."
+    "Logs...": {
+      "comment": "Menu item",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日志..."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "部署输入法引擎…"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "部署輸入法引擎…"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日誌..."
           }
         }
       }
     },
-    "deploy_success" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Squirrel is ready."
+    "Rime Wiki...": {
+      "comment": "Menu item",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在线文档..."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "部署完成。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "部署完成。"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在線文檔..."
           }
         }
       }
     },
-    "deploy_update" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deploying Rime for updates."
+    "Settings...": {
+      "comment": "Menu item",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户设定..."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新输入法引擎…"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新輸入法引擎…"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用戶設定"
           }
         }
       }
     },
-    "Logs..." : {
-      "comment" : "Menu item",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "日志..."
+    "Sync user data": {
+      "comment": "Menu item",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同步用户数据"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "日誌..."
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同步用戶資料"
           }
         }
       }
     },
-    "Rime Wiki..." : {
-      "comment" : "Menu item",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在线文档..."
+    "Version [version] is now available": {
+      "comment": "Update",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[version] 现已发布"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在線文檔..."
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[version] 現已發佈"
           }
         }
       }
     },
-    "Settings..." : {
-      "comment" : "Menu item",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "用户设定..."
+    "deploy_failure": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error occurred. Please check log files"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "用戶設定"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有错误！请查看日志"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有錯誤！請查看日誌"
           }
         }
       }
     },
-    "Squirrel" : {
-      "comment" : "Menu title",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "鼠须管"
+    "deploy_start": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deploying Rime input method engine."
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "鼠鬚管"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部署输入法引擎…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部署輸入法引擎…"
           }
         }
       }
     },
-    "Sync user data" : {
-      "comment" : "Menu item",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "同步用户数据"
+    "deploy_success": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bangke is ready."
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "同步用戶資料"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部署完成。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部署完成。"
           }
         }
       }
     },
-    "Version [version] is now available" : {
-      "comment" : "Update",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "[version] 现已发布"
+    "deploy_update": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deploying Rime for updates."
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "[version] 現已發佈"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新输入法引擎…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新輸入法引擎…"
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

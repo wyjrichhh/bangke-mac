@@ -1,0 +1,125 @@
+#!/bin/bash
+#
+# postinstall: @APP_NAME@ 写入完成后, 把分发版自带的默认配置和
+# CTranslate2 模型从 SharedSupport 复制到用户 Rime 目录, 然后
+# 沿用上游的注册 / 部署 / 启用流程.
+#
+# 资源在 .app 里的位置 (由 package/build-pkg 注入):
+#   @APP_NAME@/Contents/SharedSupport/ai-predict-defaults/*.custom.yaml
+#   @APP_NAME@/Contents/SharedSupport/predict_models/zh-base-ct2-int8/
+#
+# 用户目标位置:
+#   ~/Library/Rime/{default,luna_pinyin}.custom.yaml
+#   ~/Library/Rime/predict_models/zh-base-ct2-int8/
+#
+
+set -e
+
+LOGIN_USER=$(/usr/bin/stat -f%Su /dev/console)
+LOGIN_HOME=$(/usr/bin/dscl . -read "/Users/${LOGIN_USER}" NFSHomeDirectory 2>/dev/null | awk '{print $2}')
+[ -n "${LOGIN_HOME}" ] || LOGIN_HOME="/Users/${LOGIN_USER}"
+
+RIME_DIR="${LOGIN_HOME}/Library/Rime"
+LOG_DIR="${LOGIN_HOME}/Library/Logs/BangkePinyin"
+mkdir -p "${LOG_DIR}"
+LOG="${LOG_DIR}/install.log"
+
+APP_NAME="@APP_NAME@"
+APP_ROOT="${DSTROOT}/${APP_NAME}"
+APP_BIN="${APP_ROOT}/Contents/MacOS/${APP_NAME%.app}"
+SHARED="${APP_ROOT}/Contents/SharedSupport"
+
+DEFAULTS_SRC="${SHARED}/ai-predict-defaults"
+RIME_ICE_SRC="${SHARED}/rime-ice"
+MODEL_SRC="${SHARED}/predict_models/zh-base-ct2-int8"
+MODEL_DST="${RIME_DIR}/predict_models/zh-base-ct2-int8"
+
+echo "[$(date '+%F %T')] postinstall start, user=${LOGIN_USER}" >> "${LOG}"
+
+mkdir -p "${RIME_DIR}"
+
+if [ -d "${DEFAULTS_SRC}" ]; then
+    # Hard-overwrite: these are the engine wiring we need for AI candidates
+    # to appear at all. Old versions were already moved to Rime.backup-<ts>/
+    # by preinstall.
+    echo "[postinstall] installing default custom.yaml(s)" >> "${LOG}"
+    for f in default.custom.yaml luna_pinyin.custom.yaml rime_ice.custom.yaml; do
+        [ -f "${DEFAULTS_SRC}/${f}" ] && cp "${DEFAULTS_SRC}/${f}" "${RIME_DIR}/${f}"
+    done
+    # Soft-write: bangke.custom.yaml only controls the panel's appearance
+    # (font/color scheme/accent_text_color etc.). Existing users may
+    # have hand-tuned this file; we don't want to silently overwrite their
+    # font choices just to set our accent color. So we only seed it when the
+    # file is truly absent. Existing users can opt in by following the README
+    # "可选: 让 AI 候选的 'AI' 字样以强调色显示" section manually.
+    if [ -f "${DEFAULTS_SRC}/bangke.custom.yaml" ] && [ ! -f "${RIME_DIR}/bangke.custom.yaml" ]; then
+        echo "[postinstall] seeding bangke.custom.yaml (no existing one found)" >> "${LOG}"
+        cp "${DEFAULTS_SRC}/bangke.custom.yaml" "${RIME_DIR}/bangke.custom.yaml"
+    elif [ -f "${RIME_DIR}/bangke.custom.yaml" ]; then
+        echo "[postinstall] keeping user's existing bangke.custom.yaml" >> "${LOG}"
+    fi
+
+    # Extended dictionary (rime-ice core shards). These are
+    # data files we ship and own, so hard-overwrite: copy the dict definition
+    # and its cn_dicts/ shards into the user Rime dir. luna_pinyin.custom.yaml
+    # points translator/dictionary at luna_pinyin.extended, so --build below
+    # compiles and mounts it automatically.
+    if [ -d "${DEFAULTS_SRC}/dicts" ]; then
+        echo "[postinstall] installing extended dictionary (luna_pinyin.extended + cn_dicts)" >> "${LOG}"
+        cp -R "${DEFAULTS_SRC}/dicts/." "${RIME_DIR}/"
+    else
+        echo "[postinstall] no dicts/ in defaults, skipping extended dictionary" >> "${LOG}"
+    fi
+else
+    echo "[postinstall] WARN: no ${DEFAULTS_SRC}, skipping defaults" >> "${LOG}"
+fi
+
+# 雾凇拼音(rime-ice)全拼方案: schema + melt_eng/radical_pinyin 词库 + lua
+# + en_dicts + opencc(emoji) 硬覆盖铺到用户 Rime 目录。cn_dicts 已由上方
+# dicts/ 一并铺好(同一套 rime-ice 核心分片), 这里不再重复处理。
+if [ -d "${RIME_ICE_SRC}" ]; then
+    echo "[postinstall] installing rime-ice (雾凇拼音) scheme" >> "${LOG}"
+    cp -R "${RIME_ICE_SRC}/." "${RIME_DIR}/"
+else
+    echo "[postinstall] no ${RIME_ICE_SRC}, skipping 雾凇拼音 scheme" >> "${LOG}"
+fi
+
+if [ -f "${MODEL_SRC}/model.bin" ]; then
+    if [ -f "${MODEL_DST}/model.bin" ]; then
+        SRC_HASH=$(/usr/bin/shasum -a 256 "${MODEL_SRC}/model.bin" | awk '{print $1}')
+        DST_HASH=$(/usr/bin/shasum -a 256 "${MODEL_DST}/model.bin" | awk '{print $1}')
+        if [ "${SRC_HASH}" = "${DST_HASH}" ]; then
+            echo "[postinstall] model already up to date, skip copy" >> "${LOG}"
+        else
+            echo "[postinstall] model hash differs, refreshing" >> "${LOG}"
+            rm -rf "${MODEL_DST}"
+            mkdir -p "${MODEL_DST}"
+            cp -R "${MODEL_SRC}/." "${MODEL_DST}/"
+        fi
+    else
+        echo "[postinstall] copying model -> ${MODEL_DST}" >> "${LOG}"
+        mkdir -p "${MODEL_DST}"
+        cp -R "${MODEL_SRC}/." "${MODEL_DST}/"
+    fi
+else
+    echo "[postinstall] WARN: no model at ${MODEL_SRC}, skipping" >> "${LOG}"
+fi
+
+echo "[postinstall] chowning ${RIME_DIR} to ${LOGIN_USER}" >> "${LOG}"
+/usr/sbin/chown -R "${LOGIN_USER}:staff" "${RIME_DIR}"
+
+/usr/bin/sudo -u "${LOGIN_USER}" /usr/bin/killall "${APP_NAME%.app}" >/dev/null 2>&1 || true
+
+"${APP_BIN}" --register-input-source
+
+if [ -z "${RIME_NO_PREBUILD}" ]; then
+    pushd "${SHARED}" >/dev/null
+    "${APP_BIN}" --build || echo "[postinstall] WARN: --build returned non-zero" >> "${LOG}"
+    popd >/dev/null
+fi
+
+/usr/bin/sudo -u "${LOGIN_USER}" "${APP_BIN}" --enable-input-source || true
+/usr/bin/sudo -u "${LOGIN_USER}" "${APP_BIN}" --select-input-source || true
+
+echo "[$(date '+%F %T')] postinstall done" >> "${LOG}"
+exit 0

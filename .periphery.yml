@@ -1,6 +1,6 @@
-project: Squirrel.xcodeproj
+project: Bangke.xcodeproj
 schemes:
-- Squirrel
+- Bangke
 targets:
-- Squirrel
+- Bangke
 format: github-actions

@@ -1,0 +1,371 @@
+#!/usr/bin/env bash
+#
+# 唯一的打包入口：出「带最新代码、已签名、已公证」的安装 pkg。
+#
+# 一条命令打通全链路，不必再单独记 make librime / make release / make install。
+# 之所以不复用上游的 package/make_package + Distribution + sign_app（已删除），
+# 是因为本分发版要额外塞三样东西，那是上游链路没有的：
+#   1. CTranslate2 模型        -> SharedSupport/predict_models/
+#   2. 默认 custom.yaml        -> SharedSupport/ai-predict-defaults/
+#   3. 分发版 preinstall/postinstall (备份/清理旧 Rime 配置, 落地模型)
+# 两套并存的直接后果是安装行为会漂移，所以只留这一条。
+#
+# 本机调试直装不走这里，用 `make install` / `make install-debug`
+# （scripts/dev-install，不签名不公证，秒级）。
+#
+# 用法:
+#   bash package/build-pkg
+#
+# 打包逻辑（本脚本 + dist-scripts/ + 组件清单）随仓库走；大块内容物
+# （词库、rime-ice、CT2 模型）在 local/，可用 ASSETS_DIR / DEFAULTS_DIR /
+# RIME_ICE_DIR / MODEL_SRC 覆盖。
+#
+# 常用环境变量 (都有默认值):
+#   DEV_ID            证书 CN 后缀, 同时用于 Application 与 Installer 两张证书
+#   NOTARY_PROFILE    notarytool store-credentials 时起的 profile 名
+#   BOOST_ROOT        Boost 头文件 / 库根目录
+#   ARCHS             "arm64" 或 "arm64 x86_64"
+#   MODEL_SRC         CTranslate2 模型源目录, 内部应直接含 model.bin / config.json 等
+#                     默认查找顺序:
+#                       1) local/cache/predict_models/zh-base-ct2-int8/
+#                       2) ~/Library/Rime/predict_models/zh-base-ct2-int8/
+#                     都没有就报错; 不会自动联网下载
+#   SKIP_PULL=1       跳过 git pull + submodule update (本地有未提交改动时用)
+#   SKIP_BUILD=1      跳过 make librime + make release, 直接拿 lib/ 下
+#                     既有产物与 build/ 下既有 .app 走签名/公证 (调试打包流程用)
+#   SKIP_NOTARIZE=1   跳过公证, 只产出已签名但未公证的 pkg (本机自测用)
+#
+
+set -euo pipefail
+
+DEV_ID="${DEV_ID:-Beijing Bangke Intelligent Technology Co., Ltd. (PBW5L7JKX6)}"
+NOTARY_PROFILE="${NOTARY_PROFILE:-Beijing Bangke Intelligent Technology Co., Ltd.}"
+BOOST_ROOT="${BOOST_ROOT:-$(brew --prefix boost 2>/dev/null || true)}"
+ARCHS="${ARCHS:-arm64}"
+MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-13.0}"
+DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-build}"
+SKIP_PULL="${SKIP_PULL:-0}"
+SKIP_BUILD="${SKIP_BUILD:-0}"
+# 记下用户是否显式指定过：非正式分支的"默认跳过公证"只在用户没表态时才套用，
+# 否则用户写 SKIP_NOTARIZE=0 想验证公证流程会被我们覆盖掉。
+SKIP_NOTARIZE_EXPLICIT="${SKIP_NOTARIZE:-}"
+SKIP_NOTARIZE="${SKIP_NOTARIZE:-0}"
+
+C_INFO=$'\033[1;36m'; C_OK=$'\033[1;32m'; C_WARN=$'\033[1;33m'; C_ERR=$'\033[1;31m'; C_END=$'\033[0m'
+log()  { printf "%s[build-pkg]%s %s\n" "$C_INFO" "$C_END" "$*"; }
+ok()   { printf "%s[ok]%s %s\n"            "$C_OK"   "$C_END" "$*"; }
+warn() { printf "%s[warn]%s %s\n"          "$C_WARN" "$C_END" "$*"; }
+die()  { printf "%s[error]%s %s\n"         "$C_ERR"  "$C_END" "$*" >&2; exit 1; }
+
+# 先按脚本自身位置解析绝对路径，再 cd —— 否则从别处调用时相对路径会算错
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${PROJECT_ROOT}"
+# 品牌值来自 Brand.xcconfig（单一事实来源），不要在这里写死产物名
+APP_NAME="${APP_NAME:-$(bash "${PROJECT_ROOT}/scripts/brand.sh" APP_NAME)}"
+BUNDLE_ID="${BUNDLE_ID:-$(bash "${PROJECT_ROOT}/scripts/brand.sh" BRAND_BUNDLE_ID)}"
+PKG_STEM="${APP_NAME%.app}"
+
+# 正式包只从 RELEASE_BRANCH 出。特性分支上的构建是"合入前本地验证"用的测试包，
+# 必须一眼可辨——否则一个未合并的测试包很容易被当成正式包发出去。
+RELEASE_BRANCH="${RELEASE_BRANCH:-main}"
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+BRANCH_TAG="$(echo "${CURRENT_BRANCH}" | tr '/ ' '--')"
+if [ "${CURRENT_BRANCH}" = "${RELEASE_BRANCH}" ]; then
+    IS_RELEASE_BUILD=1
+else
+    IS_RELEASE_BUILD=0
+fi
+# 打包逻辑（本脚本 + dist-scripts + 组件清单）都随仓库走；
+# 大块内容物（词库 44M、rime-ice 3.8M、CT2 模型）留在 local/，可用环境变量改写
+ASSETS_DIR="${ASSETS_DIR:-${PROJECT_ROOT}/local}"
+DEFAULTS_DIR="${DEFAULTS_DIR:-${ASSETS_DIR}/ai-predict-defaults}"
+DIST_SCRIPTS_DIR="${SCRIPT_DIR}/dist-scripts"
+RIME_ICE_DIR="${RIME_ICE_DIR:-${ASSETS_DIR}/rime-ice}"
+PKG_INFO="${SCRIPT_DIR}/PackageInfo"
+log "项目根: ${PROJECT_ROOT}"
+
+if [ "${IS_RELEASE_BUILD}" != "1" ]; then
+    warn "================================================================"
+    warn " 当前分支 ${CURRENT_BRANCH} ≠ ${RELEASE_BRANCH}：这是【测试包】"
+    warn " 产物名会带 -test-${BRANCH_TAG} 后缀，不要分发"
+    warn " 正式包请在 ${RELEASE_BRANCH} 分支上打"
+    warn "================================================================"
+    # 测试包不该占用公证时间/配额；要验证完整签名安装流程可显式 SKIP_NOTARIZE=0
+    if [ -z "${SKIP_NOTARIZE_EXPLICIT}" ]; then
+        SKIP_NOTARIZE=1
+        warn "非 ${RELEASE_BRANCH} 分支默认跳过公证 (要验证公证流程请显式 SKIP_NOTARIZE=0)"
+    fi
+fi
+
+# ---- 找模型 -------------------------------------------------------------
+if [ -z "${MODEL_SRC:-}" ]; then
+    for cand in \
+        "${ASSETS_DIR}/cache/predict_models/zh-base-ct2-int8" \
+        "${HOME}/Library/Rime/predict_models/zh-base-ct2-int8"; do
+        if [ -f "${cand}/model.bin" ]; then
+            MODEL_SRC="${cand}"
+            break
+        fi
+    done
+fi
+[ -n "${MODEL_SRC:-}" ] && [ -f "${MODEL_SRC}/model.bin" ] || die "找不到 CTranslate2 模型 (model.bin):
+  请先跑 librime/plugins/ai-predict/scripts/download_model.sh 拉取,
+  或显式指定 MODEL_SRC=/path/to/zh-base-ct2-int8/"
+MODEL_SIZE=$(du -sh "${MODEL_SRC}" | awk '{print $1}')
+
+# ---- 预检查 -------------------------------------------------------------
+log "预检查证书 / 公证 profile / 默认配置 / 依赖 ..."
+
+security find-identity -v -p codesigning 2>/dev/null \
+  | grep -Fq "Developer ID Application: ${DEV_ID}" \
+  || die "找不到证书 'Developer ID Application: ${DEV_ID}'"
+
+security find-identity -v 2>/dev/null \
+  | grep -Fq "Developer ID Installer: ${DEV_ID}" \
+  || die "找不到证书 'Developer ID Installer: ${DEV_ID}'"
+
+if [ "${SKIP_NOTARIZE}" != "1" ]; then
+    # 失败原因不止「profile 不存在」: 协议过期(403)、凭证失效等都会让这条返回非 0,
+    # 旧版一律报「profile 不存在」会把排查带偏, 所以把 notarytool 原文打出来.
+    if ! NOTARY_ERR="$(xcrun notarytool history --keychain-profile "${NOTARY_PROFILE}" 2>&1)"; then
+        die "notarytool 预检查失败 (profile: '${NOTARY_PROFILE}'):
+${NOTARY_ERR}
+
+  常见原因:
+    - profile 不存在/凭证失效: xcrun notarytool store-credentials \"${NOTARY_PROFILE}\" --apple-id <Apple ID> --team-id <TEAM_ID>
+    - 403 协议过期: 去 https://developer.apple.com/account 签署新的开发者协议
+    - 只想本机自测: SKIP_NOTARIZE=1 重跑本脚本"
+    fi
+fi
+
+[ -n "${BOOST_ROOT}" ] && [ -d "${BOOST_ROOT}" ] || die "BOOST_ROOT 未设置或不存在: '${BOOST_ROOT}'"
+
+[ -f "${DEFAULTS_DIR}/default.custom.yaml" ] && [ -f "${DEFAULTS_DIR}/luna_pinyin.custom.yaml" ] \
+  && [ -f "${DEFAULTS_DIR}/rime_ice.custom.yaml" ] \
+  || die "缺少默认配置模板: ${DEFAULTS_DIR}/{default,luna_pinyin,rime_ice}.custom.yaml"
+
+[ -f "${DEFAULTS_DIR}/dicts/luna_pinyin.extended.dict.yaml" ] \
+  && [ -f "${DEFAULTS_DIR}/dicts/cn_dicts/base.dict.yaml" ] \
+  || die "缺少扩展词库: ${DEFAULTS_DIR}/dicts/{luna_pinyin.extended.dict.yaml,cn_dicts/base.dict.yaml}"
+
+[ -f "${RIME_ICE_DIR}/rime_ice.schema.yaml" ] && [ -d "${RIME_ICE_DIR}/lua" ] \
+  || die "缺少雾凇拼音资源: ${RIME_ICE_DIR}/{rime_ice.schema.yaml,lua/}"
+
+[ -f "${DIST_SCRIPTS_DIR}/preinstall" ] && [ -f "${DIST_SCRIPTS_DIR}/postinstall" ] \
+  || die "缺少分发版 pkg scripts: ${DIST_SCRIPTS_DIR}/{pre,post}install"
+chmod +x "${DIST_SCRIPTS_DIR}/preinstall" "${DIST_SCRIPTS_DIR}/postinstall"
+
+[ -f librime/plugins/ai-predict/Makefile ] \
+  || warn "未发现 librime/plugins/ai-predict/, 编译出的 .app 不会带 ai-predict.dylib"
+
+ok "预检查通过"
+echo "  DEV_ID         = ${DEV_ID}"
+echo "  NOTARY_PROFILE = ${NOTARY_PROFILE}"
+echo "  BOOST_ROOT     = ${BOOST_ROOT}"
+echo "  ARCHS          = ${ARCHS}"
+echo "  MACOSX_DEPLOY  = ${MACOSX_DEPLOYMENT_TARGET}"
+echo "  MODEL_SRC      = ${MODEL_SRC} (${MODEL_SIZE})"
+
+# ARCHS 不入 export: make release 已显式传 `ARCHS="${ARCHS}"`,librime 只读
+# BUILD_UNIVERSAL(见下),两者都不依赖环境里的 ARCHS。
+export BOOST_ROOT MACOSX_DEPLOYMENT_TARGET
+
+# librime 自己不读 ARCHS, 而是读 BUILD_UNIVERSAL (它会设
+# CMAKE_OSX_ARCHITECTURES=arm64;x86_64). 这里把 蚌壳拼音的 ARCHS 翻译过去,
+# 否则当 ARCHS="arm64 x86_64" 时会打出「universal 的 .app 套 arm64-only 的
+# librime」, 在 Intel 机上加载失败. 单架构(arm64)时不传, 按 host 架构编即可.
+LIBRIME_UNIVERSAL_ARG=""
+case " ${ARCHS} " in
+    *" x86_64 "*) LIBRIME_UNIVERSAL_ARG="BUILD_UNIVERSAL=1" ;;
+esac
+
+# ---- 0) 拉取官方代码 ----------------------------------------------------
+# 让打的包基于最新代码 + librime(含其子模块)。只更新本仓库与
+# 子模块,不碰 librime/plugins 下的上游插件和 ai-predict(本地符号链接)。
+# git pull --ff-only 只在能快进时成功: 若上游也动了本地有未提交改动的文件
+# (如接入 ai-predict 的 project.pbxproj), 会直接拒绝而不是静默覆盖。
+if [ "${SKIP_PULL}" != "1" ]; then
+    # 只有当前分支真有上游时才拉: 特性分支(如从 main 切出来的工作分支)没有
+    # 跟踪分支, git pull 会直接报 "no tracking information" —— 那是正常状态,
+    # 不该当成错误中断打包。
+    if upstream_ref="$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)"; then
+        log "拉取官方代码 (git pull --ff-only ${upstream_ref} + submodule update)"
+        git pull --ff-only || die "git pull ${upstream_ref} 失败: 可能是本地未提交改动会被覆盖、分支已分叉、或网络/凭据问题。先 git stash / 手动合并, 或用 SKIP_PULL=1 跳过"
+    else
+        warn "当前分支 $(git rev-parse --abbrev-ref HEAD) 没有上游跟踪分支, 跳过拉取"
+        warn "(要基于别的分支打包先 git switch; 要跳过本步用 SKIP_PULL=1)"
+    fi
+    git submodule update --init --recursive
+else
+    log "SKIP_PULL=1, 跳过拉取官方代码"
+fi
+
+# ---- 1) 重编 librime + 插件, 并同步到 lib/ ----------------------
+# 蚌壳拼音的 `make release` 只在 lib/librime.1.dylib 缺失时才触发 librime
+# 重编, 所以这里必须显式跑一次 `make librime`: 它会
+#   1) make -C librime release install   重编 librime 与 ai-predict 等插件
+#   2) make copy-rime-binaries           把新 dylib/插件拷进 lib/
+# 这样后面打包出来的 .app 一定带最新代码, 你不用再手动记 make release/install.
+if [ "${SKIP_BUILD}" != "1" ]; then
+    log "[1/8] 重编 librime + 插件并同步到 lib/  (make librime ${LIBRIME_UNIVERSAL_ARG:-单架构})"
+    make librime ${LIBRIME_UNIVERSAL_ARG}
+    PLUGIN_DYLIB="lib/rime-plugins/librime-ai-predict.dylib"
+    if [ -f "${PLUGIN_DYLIB}" ]; then
+        ok "ai-predict 插件已同步: $(shasum -a 256 "${PLUGIN_DYLIB}" | awk '{print substr($1,1,12)}')  ${PLUGIN_DYLIB}"
+    else
+        warn "未发现 ${PLUGIN_DYLIB}, 打出的包将不带 ai-predict 插件"
+    fi
+else
+    log "[1/8] SKIP_BUILD=1, 跳过 make librime (沿用 lib/ 下既有产物)"
+fi
+
+# ---- 2) 编译 .app --------------------------------------------------------
+if [ "${SKIP_BUILD}" != "1" ]; then
+    log "[2/8] 编译 ${APP_NAME}  (make release ARCHS='${ARCHS}')"
+    make release ARCHS="${ARCHS}"
+else
+    log "[2/8] SKIP_BUILD=1, 跳过 make release"
+fi
+
+APP_PATH="${DERIVED_DATA_PATH}/Build/Products/Release/${APP_NAME}"
+[ -d "${APP_PATH}" ] || die "未找到 .app: ${APP_PATH}"
+
+# ---- 3) 注入资源到 .app/Contents/SharedSupport --------------------------
+log "[3/8] 注入默认配置 + CTranslate2 模型到 SharedSupport"
+SHARED="${APP_PATH}/Contents/SharedSupport"
+INJECT_DEFAULTS="${SHARED}/ai-predict-defaults"
+INJECT_MODEL="${SHARED}/predict_models/zh-base-ct2-int8"
+INJECT_RIME_ICE="${SHARED}/rime-ice"
+
+rm -rf "${INJECT_DEFAULTS}" "${INJECT_MODEL}" "${INJECT_RIME_ICE}"
+mkdir -p "${INJECT_DEFAULTS}" "${INJECT_MODEL}"
+
+cp "${DEFAULTS_DIR}/default.custom.yaml"     "${INJECT_DEFAULTS}/"
+cp "${DEFAULTS_DIR}/luna_pinyin.custom.yaml" "${INJECT_DEFAULTS}/"
+cp "${DEFAULTS_DIR}/rime_ice.custom.yaml"    "${INJECT_DEFAULTS}/"
+# bangke.custom.yaml 由 postinstall 走"软覆盖"路径 seed (有则保留, 无则
+# 落下默认 accent_text_color 等外观参数). 缺这个文件时 postinstall 静默
+# skip, 导致新用户拿不到 AI 候选的强调配色.
+cp "${DEFAULTS_DIR}/bangke.custom.yaml"    "${INJECT_DEFAULTS}/"
+# 扩展词库(雾凇 rime-ice 核心全拼分片)随包分发, postinstall 会把
+# dicts/ 下的 luna_pinyin.extended.dict.yaml 与 cn_dicts/*.dict.yaml 一并
+# 铺到用户 ~/Library/Rime/, 配合 luna_pinyin.custom.yaml 里的
+# translator/dictionary: luna_pinyin.extended 自动挂载, 大幅扩充词汇量.
+if [ -d "${DEFAULTS_DIR}/dicts" ]; then
+    cp -R "${DEFAULTS_DIR}/dicts" "${INJECT_DEFAULTS}/dicts"
+    DICT_SIZE=$(du -sh "${INJECT_DEFAULTS}/dicts" | awk '{print $1}')
+    ok "已注入扩展词库 dicts/ (${DICT_SIZE})"
+else
+    warn "未发现 ${DEFAULTS_DIR}/dicts, 打出的包不带扩展词库"
+fi
+# 雾凇拼音(rime-ice)全拼方案: schema + 依赖词库(melt_eng/radical_pinyin)
+# + lua 脚本 + en_dicts + opencc(emoji) 一并随包分发, postinstall 铺到
+# ~/Library/Rime/, 用户 F4 即可切到 rime_ice。cn_dicts 已随上方 dicts/ 分发。
+if [ -d "${RIME_ICE_DIR}" ]; then
+    cp -R "${RIME_ICE_DIR}" "${INJECT_RIME_ICE}"
+    ok "已注入雾凇拼音 rime-ice ($(du -sh "${INJECT_RIME_ICE}" | awk '{print $1}'))"
+else
+    warn "未发现 ${RIME_ICE_DIR}, 打出的包不带 rime-ice 方案"
+fi
+cp -R "${MODEL_SRC}/." "${INJECT_MODEL}/"
+
+YAML_COUNT=$(ls "${INJECT_DEFAULTS}" | wc -l | tr -d ' ')
+ok "已注入: ${YAML_COUNT} 个 custom.yaml ($(ls "${INJECT_DEFAULTS}" | xargs)) + 模型 $(du -sh "${INJECT_MODEL}" | awk '{print $1}')"
+
+# ---- 3) codesign .app  (注入完成之后再签, 否则签名会失效) -----------------
+# 此阶段 app 只是 Developer ID 签名、尚未公证(公证在 notarize 那步对 pkg 做),
+# 所以只做 codesign --verify --deep --strict 验签, 不跑 spctl —
+# spctl 要求 Gatekeeper 放行, 未公证必然 rejected 返回非 0, 在 set -e 下会误杀整个脚本。
+log "[4/8] 签名 ${APP_NAME} (Developer ID Application, --deep 会覆盖注入的资源)"
+codesign --deep --force --options runtime --timestamp \
+    --sign "Developer ID Application: ${DEV_ID}" \
+    --entitlements "${PROJECT_ROOT}/resources/Bangke.entitlements" \
+    --verbose "${APP_PATH}"
+codesign --verify --deep --strict --verbose=2 "${APP_PATH}"
+
+# ---- 4) pkgbuild (安装钩子来自 package/dist-scripts/) ----
+log "[5/8] 生成未签名 pkg (pkgbuild + dist-scripts)"
+rm -f package/${PKG_STEM}.pkg package/${PKG_STEM}-signed.pkg
+
+APP_VERSION="$(xcrun agvtool what-version -terse 2>/dev/null | tr -d '[:space:]' || true)"
+[ -n "${APP_VERSION}" ] || APP_VERSION="0.0.0"
+
+# 组件清单与安装脚本里的 @APP_NAME@ 占位符 pkgbuild 不会展开，必须自己渲染
+pkg_staging="$(mktemp -d)"
+render_dir="$(mktemp -d)"
+trap 'rm -rf "${pkg_staging}" "${render_dir}"' EXIT
+sed -e "s/@APP_NAME@/${APP_NAME}/g" "${SCRIPT_DIR}/Bangke-component.plist" > "${render_dir}/component.plist"
+for hook in preinstall postinstall; do
+    [ -f "${DIST_SCRIPTS_DIR}/${hook}" ] || continue
+    sed -e "s/@APP_NAME@/${APP_NAME}/g" -e "s/@BUNDLE_ID@/${BUNDLE_ID}/g" \
+        "${DIST_SCRIPTS_DIR}/${hook}" > "${pkg_staging}/${hook}"
+    chmod +x "${pkg_staging}/${hook}"
+done
+
+pkgbuild \
+    --info "${PKG_INFO}" \
+    --root "${PROJECT_ROOT}/${DERIVED_DATA_PATH}/Build/Products/Release" \
+    --filter '.*\.swiftmodule$' \
+    --component-plist "${render_dir}/component.plist" \
+    --identifier "${BUNDLE_ID}" \
+    --version "${APP_VERSION}" \
+    --install-location '/Library/Input Methods' \
+    --scripts "${pkg_staging}" \
+    package/${PKG_STEM}.pkg
+
+[ -f package/${PKG_STEM}.pkg ] || die "pkgbuild 没产出 package/${PKG_STEM}.pkg"
+
+# ---- 5) productsign -----------------------------------------------------
+log "[6/8] 签名 pkg (Developer ID Installer)"
+productsign --sign "Developer ID Installer: ${DEV_ID}" \
+    package/${PKG_STEM}.pkg package/${PKG_STEM}-signed.pkg
+mv package/${PKG_STEM}-signed.pkg package/${PKG_STEM}.pkg
+ok "pkg 已签名"
+
+# ---- 6) notarize + staple ----------------------------------------------
+if [ "${SKIP_NOTARIZE}" != "1" ]; then
+    log "[7/8] 提交公证 (上传 ~$(du -h package/${PKG_STEM}.pkg | awk '{print $1}'), 通常 5-15 分钟)"
+    xcrun notarytool submit package/${PKG_STEM}.pkg \
+        --keychain-profile "${NOTARY_PROFILE}" \
+        --wait
+
+    log "      stapler staple"
+    xcrun stapler staple package/${PKG_STEM}.pkg
+    ok "公证完成且已 staple"
+else
+    warn "[7/8] SKIP_NOTARIZE=1, 跳过公证 (装机会被 Gatekeeper 拦, 仅本机自测用)"
+fi
+
+# ---- 7) 验证 + 归档 -----------------------------------------------------
+log "[8/8] 验证 + 归档"
+echo "--- pkgutil --check-signature ---"
+pkgutil --check-signature package/${PKG_STEM}.pkg | sed 's/^/  /'
+
+if [ "${SKIP_NOTARIZE}" != "1" ]; then
+    echo "--- stapler validate ---"
+    xcrun stapler validate package/${PKG_STEM}.pkg | sed 's/^/  /' || warn "stapler validate 失败"
+    echo "--- spctl -a -vv -t install ---"
+    spctl -a -vv -t install package/${PKG_STEM}.pkg 2>&1 | sed 's/^/  /' || warn "spctl 评估失败"
+fi
+
+ARCH_TAG="$(echo "${ARCHS}" | tr ' ' '+')"
+ARCHIVE_NAME="${PKG_STEM}-${APP_VERSION}-ai-predict-${ARCH_TAG}.pkg"
+if [ "${IS_RELEASE_BUILD}" != "1" ]; then
+    ARCHIVE_NAME="${PKG_STEM}-${APP_VERSION}-ai-predict-${ARCH_TAG}-test-${BRANCH_TAG}.pkg"
+fi
+cp package/${PKG_STEM}.pkg "package/${ARCHIVE_NAME}"
+# 归档后清掉无版本名的中间产物, 避免每次多占一份 221M 磁盘
+rm -f package/${PKG_STEM}.pkg
+
+ok "完成 -> package/${ARCHIVE_NAME}"
+ls -lh "package/${ARCHIVE_NAME}"
+
+if [ "${IS_RELEASE_BUILD}" = "1" ]; then
+    ok "正式包 (分支 ${CURRENT_BRANCH})"
+else
+    warn "================================================================"
+    warn " 这是【测试包】(分支 ${CURRENT_BRANCH}，非 ${RELEASE_BRANCH})"
+    warn " 仅供本地验证，不要分发；正式包请在 ${RELEASE_BRANCH} 上重打"
+    warn "================================================================"
+fi
