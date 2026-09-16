@@ -22,6 +22,9 @@ LOGIN_HOME=$(/usr/bin/dscl . -read "/Users/${LOGIN_USER}" NFSHomeDirectory 2>/de
 RIME_DIR="${LOGIN_HOME}/Library/Rime"
 LOG_DIR="${LOGIN_HOME}/Library/Logs/BangkePinyin"
 mkdir -p "${LOG_DIR}"
+# 安装脚本以 root 跑, 建出来的目录属主会是 root; 而输入法进程以登录用户身份运行,
+# 不 chown 的话它写不进 RIME_LOG_DIR, 运行时日志会静默丢失(只剩 root 写的 install.log)。
+/usr/sbin/chown "${LOGIN_USER}:staff" "${LOG_DIR}"
 LOG="${LOG_DIR}/install.log"
 
 APP_NAME="@APP_NAME@"
