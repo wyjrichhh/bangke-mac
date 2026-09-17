@@ -21,6 +21,7 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
   var enableNotifications = false
   var showStatusIcon: Bool = true
   var statusItem: NSStatusItem?
+  var preferencesWindowController: BangkePreferencesWindowController?
   // 未接入自有 appcast 前不启动更新器：Info.plist 里没有 SUFeedURL 时
   // startingUpdater 会失败告警，菜单项也不该出现。
   static var updatesEnabled: Bool {
@@ -90,9 +91,37 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
     self.loadSettings()
   }
 
+  /// Reload after a frontend-only config change. librime caches parsed configs
+  /// in the component it was initialized with, so there is no way to pick up an
+  /// edited file without restarting it; this skips the full schema rebuild that
+  /// `deploy()` does.
+  func reloadSettings() {
+    print("Reloading settings...")
+    self.shutdownRime()
+    self.startRime(fullCheck: false)
+    self.loadSettings()
+  }
+
   func syncUserData() {
     print("Sync user data")
     _ = rimeAPI.sync_user_data()
+  }
+
+  func showSettingsWindow() {
+    // Bangke runs as a background agent; a settings window needs a real
+    // activation policy to take focus and show a Dock icon while it is open.
+    NSApp.setActivationPolicy(.regular)
+    if preferencesWindowController == nil {
+      preferencesWindowController = BangkePreferencesWindowController()
+    }
+    NSApp.activate(ignoringOtherApps: true)
+    preferencesWindowController?.showWindow(nil)
+    preferencesWindowController?.window?.makeKeyAndOrderFront(nil)
+  }
+
+  func preferencesDidClose() {
+    preferencesWindowController = nil
+    NSApp.setActivationPolicy(.accessory)
   }
 
   func openLogFolder() {

@@ -247,8 +247,11 @@ final class BangkeInputController: IMKInputController {
     sync.target = self
     let logDir = NSMenuItem(title: NSLocalizedString("Logs...", comment: "Menu item"), action: #selector(openLogFolder), keyEquivalent: "")
     logDir.target = self
-    let setting = NSMenuItem(title: NSLocalizedString("Settings...", comment: "Menu item"), action: #selector(openRimeFolder), keyEquivalent: "")
+    let setting = NSMenuItem(title: NSLocalizedString("Settings...", comment: "Menu item"),
+                             action: #selector(BangkeInputController.showSettingsWindow), keyEquivalent: "")
     setting.target = self
+    let userDir = NSMenuItem(title: NSLocalizedString("User folder...", comment: "Menu item"), action: #selector(openRimeFolder), keyEquivalent: "")
+    userDir.target = self
     let wiki = NSMenuItem(title: NSLocalizedString("Rime Wiki...", comment: "Menu item"), action: #selector(openWiki), keyEquivalent: "")
     wiki.target = self
     let update = NSMenuItem(title: NSLocalizedString("Check for updates...", comment: "Menu item"), action: #selector(checkForUpdates), keyEquivalent: "")
@@ -259,6 +262,7 @@ final class BangkeInputController: IMKInputController {
     menu.addItem(sync)
     menu.addItem(logDir)
     menu.addItem(setting)
+    menu.addItem(userDir)
     menu.addItem(wiki)
     if BangkeApplicationDelegate.updatesEnabled {
       menu.addItem(update)
@@ -277,6 +281,10 @@ final class BangkeInputController: IMKInputController {
 
   @objc func openLogFolder() {
     NSApp.bangkeAppDelegate.openLogFolder()
+  }
+
+  @objc func showSettingsWindow() {
+    NSApp.bangkeAppDelegate.showSettingsWindow()
   }
 
   @objc func openRimeFolder() {

@@ -88,6 +88,10 @@
 		B38E9B952BEAFEFD0036ABEF /* BangkeInputController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B38E9B942BEAFEFD0036ABEF /* BangkeInputController.swift */; };
 		B39771232BECEA150093A49B /* MacOSKeyCodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39771222BECEA150093A49B /* MacOSKeyCodes.swift */; };
 		B4A9D0022F30000200ABCDEF /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A9D0032F30000300ABCDEF /* Brand.swift */; };
+		B4C000022F40000200ABCDEF /* RimePatchFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C000012F40000100ABCDEF /* RimePatchFile.swift */; };
+		B4C000042F40000400ABCDEF /* BangkeSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C000032F40000300ABCDEF /* BangkeSettings.swift */; };
+		B4C000062F40000600ABCDEF /* BangkePreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C000052F40000500ABCDEF /* BangkePreviewView.swift */; };
+		B4C000082F40000800ABCDEF /* BangkePreferencesWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C000072F40000700ABCDEF /* BangkePreferencesWindow.swift */; };
 		B39771252BED899F0093A49B /* BangkeConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39771242BED899F0093A49B /* BangkeConfig.swift */; };
 		B39771272BED9B250093A49B /* BangkeTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39771262BED9B250093A49B /* BangkeTheme.swift */; };
 		B39771292BEDAF4A0093A49B /* BangkeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39771282BEDAF4A0093A49B /* BangkeView.swift */; };
@@ -311,6 +315,10 @@
 		B38E9B942BEAFEFD0036ABEF /* BangkeInputController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BangkeInputController.swift; path = sources/BangkeInputController.swift; sourceTree = "<group>"; };
 		B39771222BECEA150093A49B /* MacOSKeyCodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MacOSKeyCodes.swift; path = sources/MacOSKeyCodes.swift; sourceTree = "<group>"; };
 		B4A9D0032F30000300ABCDEF /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Brand.swift; path = sources/Brand.swift; sourceTree = "<group>"; };
+		B4C000012F40000100ABCDEF /* RimePatchFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RimePatchFile.swift; path = sources/RimePatchFile.swift; sourceTree = "<group>"; };
+		B4C000032F40000300ABCDEF /* BangkeSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BangkeSettings.swift; path = sources/BangkeSettings.swift; sourceTree = "<group>"; };
+		B4C000052F40000500ABCDEF /* BangkePreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BangkePreviewView.swift; path = sources/BangkePreviewView.swift; sourceTree = "<group>"; };
+		B4C000072F40000700ABCDEF /* BangkePreferencesWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BangkePreferencesWindow.swift; path = sources/BangkePreferencesWindow.swift; sourceTree = "<group>"; };
 		B39771242BED899F0093A49B /* BangkeConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BangkeConfig.swift; path = sources/BangkeConfig.swift; sourceTree = "<group>"; };
 		B39771262BED9B250093A49B /* BangkeTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BangkeTheme.swift; path = sources/BangkeTheme.swift; sourceTree = "<group>"; };
 		B39771282BEDAF4A0093A49B /* BangkeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BangkeView.swift; path = sources/BangkeView.swift; sourceTree = "<group>"; };
@@ -352,6 +360,10 @@
 				B39771262BED9B250093A49B /* BangkeTheme.swift */,
 				B397712A2BEE4C160093A49B /* BangkePanel.swift */,
 				B39771282BEDAF4A0093A49B /* BangkeView.swift */,
+				B4C000012F40000100ABCDEF /* RimePatchFile.swift */,
+				B4C000032F40000300ABCDEF /* BangkeSettings.swift */,
+				B4C000052F40000500ABCDEF /* BangkePreviewView.swift */,
+				B4C000072F40000700ABCDEF /* BangkePreferencesWindow.swift */,
 				B39771242BED899F0093A49B /* BangkeConfig.swift */,
 				B35D2FE72BF00839009D156B /* BridgingFunctions.swift */,
 				B3A001012F260100009D156B /* ReservedProperty.swift */,
@@ -627,6 +639,10 @@
 				B39771272BED9B250093A49B /* BangkeTheme.swift in Sources */,
 				B35D2FE82BF00839009D156B /* BridgingFunctions.swift in Sources */,
 				B3A001022F260100009D156B /* ReservedProperty.swift in Sources */,
+				B4C000022F40000200ABCDEF /* RimePatchFile.swift in Sources */,
+				B4C000042F40000400ABCDEF /* BangkeSettings.swift in Sources */,
+				B4C000062F40000600ABCDEF /* BangkePreviewView.swift in Sources */,
+				B4C000082F40000800ABCDEF /* BangkePreferencesWindow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -15,6 +15,15 @@ final class BangkeConfig {
   private var config: RimeConfig = .init()
   private var baseConfig: BangkeConfig?
 
+  init() {}
+
+  /// Take ownership of a config opened elsewhere. The settings preview assembles
+  /// one in memory so it can resolve colours without touching the deployed config.
+  init(adopting config: RimeConfig) {
+    self.config = config
+    self.isOpen = true
+  }
+
   func openBaseConfig() -> Bool {
     close()
     isOpen = rimeAPI.config_open(Brand.configName, &config)
@@ -65,6 +74,18 @@ final class BangkeConfig {
     return baseConfig?.getBool(option)
   }
 
+  func getInt(_ option: String) -> Int? {
+    if let cachedValue = cachedValue(of: Int.self, forKey: option) {
+      return cachedValue
+    }
+    var value: Int32 = 0
+    if isOpen && rimeAPI.config_get_int(&config, option, &value) {
+      cache[option] = Int(value)
+      return Int(value)
+    }
+    return baseConfig?.getInt(option)
+  }
+
   func getDouble(_ option: String) -> CGFloat? {
     if let cachedValue = cachedValue(of: Double.self, forKey: option) {
       return cachedValue
@@ -97,6 +118,19 @@ final class BangkeConfig {
       return color
     }
     return baseConfig?.getColor(option, inSpace: colorSpace)
+  }
+
+  func mapKeys(inSection section: String) -> [String] {
+    var keys = [String]()
+    var iterator = RimeConfigIterator()
+    guard isOpen, rimeAPI.config_begin_map(&iterator, &config, section) else { return keys }
+    while rimeAPI.config_next(&iterator) {
+      if let key = iterator.key {
+        keys.append(String(cString: key))
+      }
+    }
+    rimeAPI.config_end(&iterator)
+    return keys
   }
 
   func getAppOptions(_ appName: String) -> [String: Bool] {
