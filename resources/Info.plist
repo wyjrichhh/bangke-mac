@@ -20,6 +20,12 @@
 	<string>APPL</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<!-- 营销版本：给人看的，手工维护（MARKETING_VERSION）。之前只有 CFBundleVersion
+	     且被当营销版本在用，于是访达/系统设置/崩溃报告里的版本栏一直显示不出来。 -->
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<!-- 构建号：区分每一次构建，由 package/build-pkg 按 git 提交数注入，
+	     单调递增、无语义。开发构建用项目里的占位值 0。 -->
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ComponentInputModeDict</key>

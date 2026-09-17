@@ -101,6 +101,13 @@ ifdef MACOSX_DEPLOYMENT_TARGET
 BUILD_SETTINGS += MACOSX_DEPLOYMENT_TARGET="$(MACOSX_DEPLOYMENT_TARGET)"
 endif
 
+# 构建号由 package/build-pkg 按 git 提交数注入（落到 CFBundleVersion）。走专用变量而
+# 不是从命令行覆盖 BUILD_SETTINGS —— 后者是 += 累积的，命令行传参会整个顶掉，连带丢
+# 掉 ARCHS / ONLY_ACTIVE_ARCH。不传时沿用工程里的占位值 0，即开发构建。
+ifdef BUILD_NUMBER
+BUILD_SETTINGS += CURRENT_PROJECT_VERSION="$(BUILD_NUMBER)"
+endif
+
 BUILD_SETTINGS += COMPILER_INDEX_STORE_ENABLE=YES
 
 release: $(DEPS_CHECK)

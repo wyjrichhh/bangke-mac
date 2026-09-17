@@ -279,10 +279,12 @@ else
   printf '  %s? 当前没有 蚌壳拼音进程在运行 (装完了但还没切到蚌壳拼音输入法?)%s\n' "$C_WARN" "$C_END"
 fi
 
-APP_VER=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "${APP}/Contents/Info.plist" 2>/dev/null || echo '(unknown)')
+# 营销版本给人看，构建号区分每一次构建 —— 两个都打，否则光看构建号认不出是哪个版本
+APP_VER=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "${APP}/Contents/Info.plist" 2>/dev/null || echo '(unknown)')
+APP_BUILD=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "${APP}/Contents/Info.plist" 2>/dev/null || echo '(unknown)')
 APP_MTIME=$(stat -f '%Sm' "${APP}/Contents/MacOS/${APP_NAME%.app}" 2>/dev/null || echo '(unknown)')
 APP_CTIME=$(stat -f '%Sm' "${APP}" 2>/dev/null || echo '(unknown)')
-echo "  App 版本号            ${APP_VER}"
+echo "  App 版本号            ${APP_VER} (构建 ${APP_BUILD})"
 echo "  蚌壳拼音二进制 mtime ${APP_MTIME}  (打包时间)"
 echo "  .app 目录 ctime       ${APP_CTIME}  (装机时间)"
 

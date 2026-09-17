@@ -237,9 +237,15 @@ else
 fi
 
 # ---- 2) 编译 .app --------------------------------------------------------
+# 构建号 = git 提交数，单调递增、无语义，只用来区分每一次构建。手工维护的营销版本
+# 分不出来「哪个包是哪个」—— 同名同版本的两个包安装器和系统都认作同一个。
+# 走 BUILD_NUMBER 这个专用变量而不是命令行覆盖 BUILD_SETTINGS（那是 += 累积的，
+# 命令行传参会整个顶掉，连带丢掉 ARCHS 等）。
+BUILD_NUMBER="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
+
 if [ "${SKIP_BUILD}" != "1" ]; then
-    log "[2/8] 编译 ${APP_NAME}  (make release ARCHS='${ARCHS}')"
-    make release ARCHS="${ARCHS}"
+    log "[2/8] 编译 ${APP_NAME}  (make release ARCHS='${ARCHS}' BUILD_NUMBER='${BUILD_NUMBER}')"
+    make release ARCHS="${ARCHS}" BUILD_NUMBER="${BUILD_NUMBER}"
 else
     log "[2/8] SKIP_BUILD=1, 跳过 make release"
 fi
@@ -304,8 +310,12 @@ codesign --verify --deep --strict --verbose=2 "${APP_PATH}"
 log "[5/8] 生成未签名 pkg (pkgbuild + dist-scripts)"
 rm -f package/${PKG_STEM}.pkg package/${PKG_STEM}-signed.pkg
 
-APP_VERSION="$(xcrun agvtool what-version -terse 2>/dev/null | tr -d '[:space:]' || true)"
-[ -n "${APP_VERSION}" ] || APP_VERSION="0.0.0"
+# 营销版本（手工维护，MARKETING_VERSION）：读构建产物里展开后的实际值。
+# 不能用 `agvtool what-marketing-version` —— 它读的是 Info.plist 的原始文本，
+# 拿到的是没展开的 `$(MARKETING_VERSION)` 字面量。
+APP_VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' \
+    "${APP_PATH}/Contents/Info.plist" 2>/dev/null | tr -d '[:space:]' || true)"
+[ -n "${APP_VERSION}" ] || die "读不到 CFBundleShortVersionString: ${APP_PATH}/Contents/Info.plist"
 
 # 组件清单与安装脚本里的 @APP_NAME@ 占位符 pkgbuild 不会展开，必须自己渲染
 pkg_staging="$(mktemp -d)"
@@ -366,9 +376,10 @@ if [ "${SKIP_NOTARIZE}" != "1" ]; then
 fi
 
 ARCH_TAG="$(echo "${ARCHS}" | tr ' ' '+')"
-ARCHIVE_NAME="${PKG_STEM}-${APP_VERSION}-ai-predict-${ARCH_TAG}.pkg"
+# 档名带构建号：营销版本相同的两个包靠它区分（安装器与系统只认版本，分不出来）
+ARCHIVE_NAME="${PKG_STEM}-${APP_VERSION}+${BUILD_NUMBER}-ai-predict-${ARCH_TAG}.pkg"
 if [ "${IS_RELEASE_BUILD}" != "1" ]; then
-    ARCHIVE_NAME="${PKG_STEM}-${APP_VERSION}-ai-predict-${ARCH_TAG}-test-${BRANCH_TAG}.pkg"
+    ARCHIVE_NAME="${PKG_STEM}-${APP_VERSION}+${BUILD_NUMBER}-ai-predict-${ARCH_TAG}-test-${BRANCH_TAG}.pkg"
 fi
 cp package/${PKG_STEM}.pkg "package/${ARCHIVE_NAME}"
 # 归档后清掉无版本名的中间产物, 避免每次多占一份 221M 磁盘
