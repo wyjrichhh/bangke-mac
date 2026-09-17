@@ -376,10 +376,11 @@ if [ "${SKIP_NOTARIZE}" != "1" ]; then
 fi
 
 ARCH_TAG="$(echo "${ARCHS}" | tr ' ' '+')"
-# 档名带构建号：营销版本相同的两个包靠它区分（安装器与系统只认版本，分不出来）
-ARCHIVE_NAME="${PKG_STEM}-${APP_VERSION}+${BUILD_NUMBER}-ai-predict-${ARCH_TAG}.pkg"
+# 档名只用营销版本；构建号不进档名，留在系统的 CFBundleVersion 里（崩溃报告、
+# 系统信息靠它区分具体是哪次构建）。发版时营销版本会跟着 bump，档名自然不重。
+ARCHIVE_NAME="${PKG_STEM}-${APP_VERSION}-ai-predict-${ARCH_TAG}.pkg"
 if [ "${IS_RELEASE_BUILD}" != "1" ]; then
-    ARCHIVE_NAME="${PKG_STEM}-${APP_VERSION}+${BUILD_NUMBER}-ai-predict-${ARCH_TAG}-test-${BRANCH_TAG}.pkg"
+    ARCHIVE_NAME="${PKG_STEM}-${APP_VERSION}-ai-predict-${ARCH_TAG}-test-${BRANCH_TAG}.pkg"
 fi
 cp package/${PKG_STEM}.pkg "package/${ARCHIVE_NAME}"
 # 归档后清掉无版本名的中间产物, 避免每次多占一份 221M 磁盘
