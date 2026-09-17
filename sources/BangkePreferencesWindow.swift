@@ -90,8 +90,12 @@ struct BangkePreferencesView: View {
   private var preview: some View {
     VStack(alignment: .leading, spacing: 8) {
       Text("Preview").font(.caption).foregroundStyle(.secondary)
-      BangkePreviewRepresentable(settings: model.settings)
-        .frame(maxWidth: .infinity, alignment: .leading)
+      // An HStack rather than maxWidth: .infinity — the canvas must keep its
+      // intrinsic size, or the panel sits in a corner of an oversized strip.
+      HStack(spacing: 0) {
+        BangkePreviewRepresentable(settings: model.settings)
+        Spacer(minLength: 0)
+      }
     }
     .padding(16)
     .frame(maxWidth: .infinity, alignment: .leading)

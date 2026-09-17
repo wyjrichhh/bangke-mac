@@ -28,6 +28,24 @@ bash tools/preview-test/run.sh
 3. 开翻页时左侧让出 `pagingOffset`
 4. 竖排交换长短轴并把内容旋转 -90°
 5. 反复 apply 不会重复添加或丢失子视图
+6. `inline_preedit` 开关真的改变预览：关时候选框里画出拼音行，开时不画
+   （控制器是 `showPanel(preedit: inlinePreedit ? "" : preedit, ...)`，预览必须一致）
+7. 画布被撑大时面板贴左上角，不是缩在左下角留一片空白
+8. `inline_preedit` 经过 `bangke.custom.yaml` 存取往返不丢，且注释与
+   非本界面管理的键（`accent_text_color`）原样保留
+
+第 6、7、8 条是 2026-09-17 修的两个 bug 的回归：
+
+- 预览无条件画拼音行，于是 `inline_preedit` 开关看起来毫无作用
+- 预览用 `maxWidth: .infinity` + 非翻转坐标，面板缩在整条区域的左下角
+
+## 注意（续）
+
+- 第 8 条要 `BangkeSettings.load()`，它会经 `aiWiredSchemas()` 走到 librime 的
+  schema API；那个 API 在 `setup()` + `initialize()` 之前解引用会段错误。
+  真机上打开设置窗口时 librime 早已初始化，所以 `Scaffold.swift` 里补了
+  `initializeRimeForHarness()`，用独立的临时目录，不碰设置沙箱。
+- 输出是无缓冲的（`setvbuf`），后面崩了也不会把前面的结果一起吞掉。
 
 ## 直接链生产代码
 

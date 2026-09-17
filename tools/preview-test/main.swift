@@ -9,7 +9,10 @@ import AppKit
 // one addSubview and the preview still compiles, still builds, and renders an
 // empty box. Only asserting on the view tree catches it.
 
+// Unbuffered: a crash later in the run must not swallow the results so far.
+setvbuf(stdout, nil, _IONBF, 0)
 _ = NSApplication.shared
+initializeRimeForHarness()
 
 var failures = 0
 func check(_ condition: Bool, _ label: String, _ detail: String = "") {
@@ -128,6 +131,62 @@ do {
   check(content.subviews.count == before, "subview count stable",
         "\(before) -> \(content.subviews.count)")
   check(view.subviews.count == 1, "canvas still has exactly one child")
+}
+
+print("6. inline preedit control hides the preedit row")
+do {
+  let off = canvas(baseYAML("  text_orientation: horizontal\n  inline_preedit: false"))
+  let on = canvas(baseYAML("  text_orientation: horizontal\n  inline_preedit: true"))
+  let offPreedit = bangkeView(in: off)?.preeditRange.length ?? -1
+  let onPreedit = bangkeView(in: on)?.preeditRange.length ?? -1
+  check(offPreedit > 0, "preedit drawn in the panel when inline preedit is off", "got \(offPreedit)")
+  check(onPreedit == 0, "preedit omitted when inline preedit is on", "got \(onPreedit)")
+  check(off.intrinsicContentSize.height > on.intrinsicContentSize.height,
+        "panel is taller with the preedit row",
+        "off=\(off.intrinsicContentSize.height) on=\(on.intrinsicContentSize.height)")
+}
+
+print("7. the panel anchors to the top-left of its frame")
+do {
+  let view = canvas(baseYAML("  text_orientation: horizontal"))
+  // Deliberately oversized, the way a stretched SwiftUI row would hand it over.
+  view.frame = NSRect(x: 0, y: 0, width: 900, height: 400)
+  view.layoutSubtreeIfNeeded()
+  guard let content = view.subviews.first else { exit(1) }
+  let panel = content.frame
+  check(panel.minX < 20, "hugs the left edge", "got \(panel.minX)")
+  check(panel.minY < 20, "hugs the top edge, not the bottom", "got minY=\(panel.minY)")
+  check(panel.height < 200 && panel.width < 600,
+        "does not stretch to fill the frame", "got \(panel.size)")
+}
+
+print("8. inline preedit survives a settings round-trip through the patch file")
+do {
+  try? FileManager.default.removeItem(at: BangkeApp.userDir)
+  try! FileManager.default.createDirectory(at: BangkeApp.userDir, withIntermediateDirectories: true)
+  let path = BangkeSettings.customFile(Brand.configName)
+  try! """
+  # 用户自己的注释
+  patch:
+    preset_color_schemes/native/accent_text_color: 0xff8c5a
+  """.write(to: path, atomically: true, encoding: .utf8)
+
+  var settings = BangkeSettings.load()
+  check(settings.appearance.inlinePreedit, "absent key falls back to the shipped default")
+
+  settings.appearance.inlinePreedit = false
+  _ = try settings.save()
+  var text = try String(contentsOf: path, encoding: .utf8)
+  check(text.contains("style/inline_preedit: false"), "written as false", text)
+  check(text.contains("# 用户自己的注释"), "comment preserved")
+  check(text.contains("accent_text_color: 0xff8c5a"), "unmanaged key preserved")
+  check(!BangkeSettings.load().appearance.inlinePreedit, "reads back as false")
+
+  settings.appearance.inlinePreedit = true
+  _ = try settings.save()
+  text = try String(contentsOf: path, encoding: .utf8)
+  check(text.contains("style/inline_preedit: true"), "flips back to true", text)
+  check(BangkeSettings.load().appearance.inlinePreedit, "reads back as true")
 }
 
 print(failures == 0 ? "\nALL PASS" : "\n\(failures) FAILURE(S)")

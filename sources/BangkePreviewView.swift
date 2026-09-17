@@ -65,6 +65,11 @@ final class BangkePreviewCanvas: NSView {
   private let bangkeView = BangkeView(frame: .zero)
   private var theme: BangkeTheme?
 
+  /// Origin at the top left, so the panel anchors to the corner of whatever
+  /// frame SwiftUI hands us instead of floating in the bottom-left with dead
+  /// space above it.
+  override var isFlipped: Bool { true }
+
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     addSubview(content)
@@ -115,10 +120,18 @@ final class BangkePreviewCanvas: NSView {
     let rows = vertical ? sampleCandidates.count : (linear ? 1 : 2)
     let perRow = max(1, Int(ceil(Double(sampleCandidates.count) / Double(rows))))
 
-    preeditRange = NSRange(location: 0, length: samplePreedit.utf16.count)
-    text.append(NSAttributedString(string: samplePreedit, attributes: theme.preeditAttrs))
-    text.addAttribute(.paragraphStyle, value: theme.preeditParagraphStyle,
-                      range: NSRange(location: 0, length: text.length))
+    // Inline preedit keeps the pinyin in the client's marked text, and
+    // BangkeInputController duly passes the panel an empty preedit
+    // (showPanel(preedit: inlinePreedit ? "" : preedit, ...)). Mirror that,
+    // otherwise this toggle changes nothing on screen.
+    let showsPreedit = !theme.inlinePreedit
+    preeditRange = .empty
+    if showsPreedit {
+      preeditRange = NSRange(location: 0, length: samplePreedit.utf16.count)
+      text.append(NSAttributedString(string: samplePreedit, attributes: theme.preeditAttrs))
+      text.addAttribute(.paragraphStyle, value: theme.preeditParagraphStyle,
+                        range: NSRange(location: 0, length: text.length))
+    }
 
     lineRanges = []
     for (index, candidate) in sampleCandidates.enumerated() {
@@ -128,8 +141,9 @@ final class BangkePreviewCanvas: NSView {
       let commentAttrs = highlighted ? theme.commentHighlightedAttrs : theme.commentAttrs
 
       // A new row starts after the preedit, then every `perRow` candidates.
+      // With no preedit the first candidate must not be preceded by a break.
       let startsRow = index == 0 || (!linear && index % perRow == 0)
-      let separator = startsRow ? "\n" : "  "
+      let separator = (index == 0 && text.length == 0) ? "" : (startsRow ? "\n" : "  ")
       text.append(NSAttributedString(string: separator, attributes: attrs))
 
       let line = NSMutableAttributedString(string: theme.candidateFormat, attributes: labelAttrs)
@@ -214,5 +228,11 @@ struct BangkePreviewRepresentable: NSViewRepresentable {
 
   func updateNSView(_ nsView: BangkePreviewCanvas, context: Context) {
     nsView.apply(settings: settings)
+  }
+
+  /// Without this SwiftUI stretches the canvas to fill the row, and the panel
+  /// ends up as a small box in a mostly empty strip.
+  func sizeThatFits(_ proposal: ProposedViewSize, nsView: BangkePreviewCanvas, context: Context) -> CGSize? {
+    nsView.intrinsicContentSize
   }
 }
