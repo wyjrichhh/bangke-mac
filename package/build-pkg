@@ -181,8 +181,7 @@ case " ${ARCHS} " in
 esac
 
 # ---- 0) 拉取官方代码 ----------------------------------------------------
-# 让打的包基于最新代码 + librime(含其子模块)。只更新本仓库与
-# 子模块,不碰 librime/plugins 下的上游插件和 ai-predict(本地符号链接)。
+# 让打的包基于最新代码 + librime(含其子模块) + ai-predict 插件。
 # git pull --ff-only 只在能快进时成功: 若上游也动了本地有未提交改动的文件
 # (如接入 ai-predict 的 project.pbxproj), 会直接拒绝而不是静默覆盖。
 if [ "${SKIP_PULL}" != "1" ]; then
@@ -197,6 +196,23 @@ if [ "${SKIP_PULL}" != "1" ]; then
         warn "(要基于别的分支打包先 git switch; 要跳过本步用 SKIP_PULL=1)"
     fi
     git submodule update --init --recursive
+
+    # ai-predict 插件不在本仓库内: 既可能是指向仓库外独立克隆的符号链接, 也可能是
+    # install-plugins.sh 克隆出来的普通目录。两种都被上面的 submodule update 漏掉,
+    # 不单独拉就会一直拿旧插件打包。
+    plugin_dir="librime/plugins/ai-predict"
+    if plugin_src="$(cd "${plugin_dir}" 2>/dev/null && pwd -P)" \
+       && git -C "${plugin_src}" rev-parse --git-dir >/dev/null 2>&1; then
+        if plugin_ref="$(git -C "${plugin_src}" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)"; then
+            log "拉取 ai-predict 插件源码 (${plugin_src} @ ${plugin_ref})"
+            git -C "${plugin_src}" pull --ff-only \
+                || warn "插件源码拉取失败, 本次沿用当前版本 — 手动处理: git -C '${plugin_src}' status"
+        else
+            warn "ai-predict 插件源码没有上游跟踪分支, 跳过拉取: ${plugin_src}"
+        fi
+    else
+        warn "未找到可更新的 ai-predict 插件源码目录 (${plugin_dir}), 本次沿用现状"
+    fi
 else
     log "SKIP_PULL=1, 跳过拉取官方代码"
 fi
