@@ -10,6 +10,11 @@ import InputMethodKit
 final class BangkeInputController: IMKInputController {
   private static let keyRollOver = 50
   private static var unknownAppCnt: UInt = 0
+  /// Property the AI plugin raises while an inference is outstanding.
+  private static let aiPendingProperty = "ai_predict/pending"
+  private static let aiPumpInterval: TimeInterval = 0.15
+  /// Hard stop so a composition left open cannot keep this ticking forever.
+  private static let aiPumpTimeout: TimeInterval = 3
 
   private weak var client: IMKTextInput?
   private let rimeAPI: RimeApi_stdbool = rime_get_api_stdbool().pointee
@@ -27,6 +32,8 @@ final class BangkeInputController: IMKInputController {
   private var chordTimer: Timer?
   private var chordDuration: TimeInterval = 0
   private var currentApp: String = ""
+  private var aiPumpTimer: Timer?
+  private var aiPumpDeadline: Date?
 
   // swiftlint:disable:next cyclomatic_complexity
   override func handle(_ event: NSEvent!, client sender: Any!) -> Bool {
@@ -220,11 +227,13 @@ final class BangkeInputController: IMKInputController {
 
   override func deactivateServer(_ sender: Any!) {
     hidePalettes()
+    stopAIPump()
     commitComposition(sender)
     client = nil
   }
 
   override func hidePalettes() {
+    stopAIPump()
     NSApp.bangkeAppDelegate.panel?.hide()
     super.hidePalettes()
   }
@@ -322,6 +331,58 @@ final class BangkeInputController: IMKInputController {
 
 private extension BangkeInputController {
 
+  /// Re-compose on this thread while the AI plugin has an inference in flight.
+  ///
+  /// The plugin used to re-compose from its own worker thread so a finished
+  /// prediction would reach the menu on its own. That ran a full Compose()
+  /// concurrently with this thread's Compose() on the same Context, and
+  /// librime's Context/Engine are not thread-safe — crash reports show both
+  /// threads in LuaTranslator::Query, one of them taking a bad access in
+  /// luajit. The worker now only fills its cache and raises
+  /// `ai_predict/pending`; surfacing the result is this side's job.
+  func pumpAIPrediction() {
+    guard aiPumpTimer == nil,
+          session != 0,
+          isAIPredictionPending(),
+          let input = rimeAPI.get_input(session), input.pointee != 0 else {
+      return
+    }
+    aiPumpDeadline = Date().addingTimeInterval(Self.aiPumpTimeout)
+    aiPumpTimer = Timer.scheduledTimer(withTimeInterval: Self.aiPumpInterval, repeats: true) { [weak self] _ in
+      self?.onAIPumpTimer()
+    }
+  }
+
+  func onAIPumpTimer() {
+    guard session != 0,
+          isAIPredictionPending(),
+          let input = rimeAPI.get_input(session), input.pointee != 0,
+          let deadline = aiPumpDeadline, Date() < deadline else {
+      stopAIPump()
+      return
+    }
+    // Any option update makes ConcreteEngine::OnOptionUpdate call
+    // RefreshNonConfirmedComposition() on the calling thread while a
+    // composition is active — the re-compose we want, on the right thread.
+    // soft_cursor is an option this controller already owns, so re-setting it
+    // is side-effect free (rimeUpdate does the same on every keystroke).
+    rimeAPI.set_option(session, "soft_cursor", rimeAPI.get_option(session, "soft_cursor"))
+    rimeUpdate(clearReservedComments: false)
+  }
+
+  func stopAIPump() {
+    aiPumpTimer?.invalidate()
+    aiPumpTimer = nil
+    aiPumpDeadline = nil
+  }
+
+  func isAIPredictionPending() -> Bool {
+    guard session != 0 else { return false }
+    var buffer = [CChar](repeating: 0, count: 16)
+    guard rimeAPI.get_property(session, Self.aiPendingProperty, &buffer, buffer.count) else { return false }
+    return String(cString: buffer) == "1"
+  }
+
   func onChordTimer(_: Timer) {
     var processedKeys = false
     if chordKeyCount > 0 && session != 0 {
@@ -402,6 +463,7 @@ private extension BangkeInputController {
   }
 
   func destroySession() {
+    stopAIPump()
     if session != 0 {
       _ = rimeAPI.destroy_session(session)
       session = 0
@@ -567,6 +629,8 @@ private extension BangkeInputController {
     } else {
       hidePalettes()
     }
+
+    pumpAIPrediction()
   }
 
   func commit(string: String) {
