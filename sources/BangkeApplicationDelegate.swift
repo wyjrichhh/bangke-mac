@@ -180,7 +180,7 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
     createDirIfNotExist(path: BangkeApp.userDir)
     createDirIfNotExist(path: BangkeApp.logDir)
     // Expose the log directory to librime plugins.
-    setenv("RIME_LOG_DIR", BangkeApp.logDir.path(), 1)
+    setenv("RIME_LOG_DIR", BangkeApp.logDir.fileSystemPath, 1)
     // swiftlint:disable identifier_name
     let notification_handler: @convention(c) (UnsafeMutableRawPointer?, RimeSessionId, UnsafePointer<CChar>?, UnsafePointer<CChar>?) -> Void = notificationHandler
     let context_object = Unmanaged.passUnretained(self).toOpaque()
@@ -189,8 +189,8 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
 
     var bangkeTraits = RimeTraits.rimeStructInit()
     bangkeTraits.setCString(Bundle.main.sharedSupportPath!, to: \.shared_data_dir)
-    bangkeTraits.setCString(BangkeApp.userDir.path(), to: \.user_data_dir)
-    bangkeTraits.setCString(BangkeApp.logDir.path(), to: \.log_dir)
+    bangkeTraits.setCString(BangkeApp.userDir.fileSystemPath, to: \.user_data_dir)
+    bangkeTraits.setCString(BangkeApp.logDir.fileSystemPath, to: \.log_dir)
     bangkeTraits.setCString(Brand.codeName, to: \.distribution_code_name)
     bangkeTraits.setCString(Brand.displayName, to: \.distribution_name)
     bangkeTraits.setCString(Bundle.main.object(forInfoDictionaryKey: kCFBundleVersionKey as String) as! String, to: \.distribution_version)
@@ -480,11 +480,11 @@ private extension BangkeApplicationDelegate {
 
   func createDirIfNotExist(path: URL) {
     let fileManager = FileManager.default
-    if !fileManager.fileExists(atPath: path.path()) {
+    if !fileManager.fileExists(atPath: path.fileSystemPath) {
       do {
         try fileManager.createDirectory(at: path, withIntermediateDirectories: true)
       } catch {
-        print("Error creating user data directory: \(path.path())")
+        print("Error creating user data directory: \(path.fileSystemPath)")
       }
     }
   }

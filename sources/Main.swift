@@ -17,14 +17,19 @@ struct BangkeApp {
   }
   // 运行中的 bundle 路径就是安装位置，不必写死 /Library/Input Methods/<name>.app
   static let appDir = Bundle.main.bundleURL
+  /// 文件名意义上的产物名（BangkePinyin）。不能用 Brand.productName：那是
+  /// CFBundleName，会随系统语言被 InfoPlist.xcstrings 本地化成「蚌壳拼音」，
+  /// 而安装脚本 (package/dist-scripts) 写死的是 ASCII 名 —— 两边必须是同一个
+  /// 目录，否则插件的日志会被写到没人找得到的地方。
+  static let bundleName = Bundle.main.bundleURL.deletingPathExtension().lastPathComponent
   // Use ~/Library/Logs/<product>/ instead of TMPDIR so that the log files are
   // visible from a normal user shell (the IMK sandbox redirects TMPDIR to a
   // location that is not reachable outside the sandbox, which makes debugging
   // very hard — see https://github.com/rime/squirrel/issues for context).
   static let logDir = if let pwuid = getpwuid(getuid()) {
-    URL(fileURLWithFileSystemRepresentation: pwuid.pointee.pw_dir, isDirectory: true, relativeTo: nil).appending(components: "Library", "Logs", Brand.productName)
+    URL(fileURLWithFileSystemRepresentation: pwuid.pointee.pw_dir, isDirectory: true, relativeTo: nil).appending(components: "Library", "Logs", bundleName)
   } else {
-    try! FileManager.default.url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("Logs/\(Brand.productName)", isDirectory: true)
+    try! FileManager.default.url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("Logs/\(bundleName)", isDirectory: true)
   }
 
   // swiftlint:disable:next cyclomatic_complexity

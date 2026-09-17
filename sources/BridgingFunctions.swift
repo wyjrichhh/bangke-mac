@@ -7,6 +7,16 @@
 
 import Foundation
 
+extension URL {
+  /// Path as the filesystem spells it. `URL.path()` percent-encodes anything
+  /// non-ASCII, so handing it to a C API asks for a directory literally named
+  /// `%E8%9A%8C…` — which is how a localized log directory stayed broken and
+  /// silent. Use this for every path that crosses into C.
+  var fileSystemPath: String {
+    path(percentEncoded: false)
+  }
+}
+
 protocol DataSizeable {
   // swiftlint:disable:next identifier_name
   var data_size: Int32 { get set }
@@ -24,8 +34,12 @@ extension DataSizeable {
     memset(valuePointer, 0, MemoryLayout<Self>.size)
     var value = valuePointer.move()
     valuePointer.deallocate()
-    let offset = MemoryLayout.size(ofValue: \Self.data_size)
-    value.data_size = Int32(MemoryLayout<Self>.size - offset)
+    // Every DataSizeable declares `data_size` as Int32, so this is 4. Measuring
+    // the key path itself (`MemoryLayout.size(ofValue: \Self.data_size)`) yields
+    // 8 and under-reports by four bytes — harmless for today's structs, since
+    // their last field still lands inside the reported span, but a field added
+    // at the end would be silently treated as "not provided".
+    value.data_size = Int32(MemoryLayout<Self>.size - MemoryLayout<Int32>.size)
     return value
   }
 
