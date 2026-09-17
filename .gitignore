@@ -18,6 +18,12 @@ package/test-*
 package/generate_keys
 package/sign_update
 package/*.xml
+# Python: scripts/sync-brand.py 与 tools/ 下的脚本会产生这些
+__pycache__/
+*.py[cod]
+.venv/
+# 工具编译产物 (tools/preview-test/run.sh 输出到 build/preview-test/, 已被 build/ 覆盖)
+tools/*/run
 *~
 .*.swp
 .DS_Store
