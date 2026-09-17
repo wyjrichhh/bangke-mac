@@ -1,0 +1,45 @@
+{
+  "1 · 乱序拼音": [
+    {"window": "今天天气", "prompt": "zenmeyang", "expect": "怎么样", "note": "对照：正确拼写"},
+    {"window": "今天天气", "prompt": "zemneyang", "expect": "怎么样", "note": "相邻对调 nm"},
+    {"window": "今天天气", "prompt": "zenmyeang", "expect": "怎么样", "note": "相邻对调 ya"},
+    {"window": "今天天气", "prompt": "zenmeyagn", "expect": ["怎么样", "怎么样？"], "note": "相邻对调 ng"},
+    {"window": "今天天气", "prompt": "znemeyang", "expect": "怎么样", "note": "词首对调 zn"},
+    {"window": "这个方案的问题在于", "prompt": "xingnengbugou", "expect": "性能不够", "note": "对照：正确拼写"},
+    {"window": "这个方案的问题在于", "prompt": "xingnnegbugou", "expect": "性能不够", "note": "多打一个 n"},
+    {"window": "这个方案的问题在于", "prompt": "xingnebugou", "expect": "性能不够", "note": "漏打一个 n"},
+    {"window": "这个方案的问题在于", "prompt": "xingnengbguo", "expect": "性能不够", "note": "末尾对调 uo"},
+    {"window": "这个方案的问题在于", "prompt": "xignnengbugou", "expect": "性能不够", "note": "词首对调 gn"},
+    {"window": "我们出去", "prompt": "womenchuqu", "expect": "我们出去", "note": "对照：正确拼写"},
+    {"window": "我们出去", "prompt": "womnechuqu", "expect": "我们出去", "note": "相邻对调 en"},
+    {"window": "我们出去", "prompt": "chuquwomen", "expect": "我们出去", "note": "音节整体倒序"},
+    {"window": "我们明天", "prompt": "yiqichifan", "expect": "一起吃饭", "note": "对照：正确拼写"},
+    {"window": "我们明天", "prompt": "chifanyiqi", "expect": "一起吃饭", "note": "音节整体倒序"},
+    {"window": "我们明天", "prompt": "yiqifanchi", "expect": "一起吃饭", "note": "后两音节交换"}
+  ],
+
+  "2 · 拼音带标点": [
+    {"window": "今天天气", "prompt": "zenmeyang", "expect": "怎么样", "note": "对照：无标点"},
+    {"window": "今天天气", "prompt": "zenmeyang,", "expect": ["怎么样", "怎么样?"], "note": "结尾逗号"},
+    {"window": "今天天气", "prompt": "zenmeyang.", "expect": ["怎么样", "怎么样."], "note": "结尾句点"},
+    {"window": "今天天气", "prompt": "zen,meyang", "expect": ["怎么样", "怎么样?"], "note": "中间逗号"},
+    {"window": "今天天气", "prompt": "zen.meyang", "expect": "怎么样", "note": "中间句点"},
+    {"window": "今天天气", "prompt": "zen?meyang", "expect": ["怎么样", "怎么样?"], "note": "中间问号"},
+    {"window": "今天天气", "prompt": "zen-meyang", "expect": "怎么样", "note": "中间连字符"},
+    {"window": "我去", "prompt": "xian", "expect": ["西安", "西安！"], "note": "对照：无撇号"},
+    {"window": "我去", "prompt": "xi'an", "expect": "西安", "note": "撇号作音节分隔（合法输入）"},
+    {"window": "今天天气", "prompt": "zenmeyang'", "expect": "怎么样", "note": "结尾撇号"},
+    {"window": "今天天气", "prompt": "zen'meyang", "expect": "怎么样", "note": "中间撇号"}
+  ],
+
+  "3 · 拼音含英文单词": [
+    {"window": "我在用", "prompt": "macbook", "note": "整串英文；看模型是否保留该词"},
+    {"window": "我在用", "prompt": "chrome", "note": "整串英文"},
+    {"window": "这个用", "prompt": "python", "note": "整串英文"},
+    {"window": "请打开", "prompt": "wechat", "note": "整串英文"},
+    {"window": "我用", "prompt": "iphone", "note": "整串英文"},
+    {"window": "我在用", "prompt": "APPLE", "note": "英文大写"},
+    {"window": "我用", "prompt": "kaigechrome", "note": "拼音+英文混合；看是否切分正确"},
+    {"window": "今天", "prompt": "xiazaimacbook", "note": "拼音+英文混合；看是否切分正确"}
+  ]
+}

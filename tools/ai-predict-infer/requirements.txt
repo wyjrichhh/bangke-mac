@@ -1,0 +1,2 @@
+ctranslate2>=4.5,<5
+tokenizers>=0.20,<1

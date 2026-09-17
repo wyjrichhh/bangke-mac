@@ -1,0 +1,49 @@
+{
+  "_说明": "标注测试集：prompt 是正确拼写，expect 是人工确认的正确中文。用于量准确率，不用于探边界——探边界用 cases.json。",
+
+  "冷启动": [
+    {"prompt": "jintiantianqizenmeyang", "expect": "今天天气怎么样"},
+    {"prompt": "xiandedayanta", "expect": "西安的大雁塔"},
+    {"prompt": "woxiangqukankanxiandedayanta", "expect": "我想去看看西安的大雁塔"},
+    {"prompt": "womenchuquwan", "expect": "我们出去玩"},
+    {"prompt": "mingtianzaishuo", "expect": "明天再说"},
+    {"prompt": "niyoushijianma", "expect": "你有时间吗"},
+    {"prompt": "wanshangchishenme", "expect": "晚上吃什么"},
+    {"prompt": "wobuqingchu", "expect": "我不清楚"},
+    {"prompt": "zhegewentihenyanzhong", "expect": "这个问题很严重"},
+    {"prompt": "woxiagelibaisanhuijia", "expect": "我下个礼拜三回家"},
+    {"prompt": "nihewomeiyouguanxi", "expect": "你和我没有关系"},
+    {"prompt": "zhegeshihouyinggaizenmeban", "expect": "这个时候应该怎么办"},
+    {"prompt": "womenguojitianzaiyue", "expect": "我们过几天再约"},
+    {"prompt": "jintianwanshangchishenme", "expect": "今天晚上吃什么"},
+    {"prompt": "womingtianyouhui", "expect": "我明天有会"},
+    {"prompt": "zhegebanbenyouwenti", "expect": "这个版本有问题"},
+    {"prompt": "qingbangwokanyixia", "expect": "请帮我看一下"},
+    {"prompt": "womenshenmeshihoukaishi", "expect": "我们什么时候开始"},
+    {"prompt": "zhejianshiqinghenzhongyao", "expect": "这件事情很重要"},
+    {"prompt": "wozaijiadengni", "expect": "我在家等你"}
+  ],
+
+  "带上文": [
+    {"window": "今天天气", "prompt": "zenmeyang", "expect": "怎么样"},
+    {"window": "我们明天", "prompt": "yiqichifan", "expect": "一起吃饭"},
+    {"window": "这个方案的问题在于", "prompt": "xingnengbugou", "expect": "性能不够"},
+    {"window": "我昨天下午", "prompt": "quleliangge", "expect": "去了两个"},
+    {"window": "这件事情", "prompt": "zenmeban", "expect": "怎么办"},
+    {"window": "我看了一下", "prompt": "zhege", "expect": "这个"},
+    {"window": "我来试试现在的推理是不是正确", "prompt": "woxiangqukankanxiandedayanta", "expect": "我想去看看西安的大雁塔"},
+    {"window": "我觉得", "prompt": "zhegefanganbucuo", "expect": "这个方案不错"},
+    {"window": "他跟我说", "prompt": "mingtianzaishuo", "expect": "明天再说"},
+    {"window": "你上次说的", "prompt": "nagexiangmu", "expect": "那个项目"},
+    {"window": "这个问题", "prompt": "henrongyijiejue", "expect": "很容易解决"},
+    {"window": "你什么时候", "prompt": "youkong", "expect": "有空"},
+    {"window": "麻烦你", "prompt": "bangwokankan", "expect": "帮我看看"},
+    {"window": "我建议", "prompt": "womenxianzoule", "expect": "我们先走了"},
+    {"window": "他昨天", "prompt": "meiyoulai", "expect": "没有来"},
+    {"window": "我们需要", "prompt": "gengduodeshijian", "expect": "更多的时间"},
+    {"window": "你先", "prompt": "huiquba", "expect": "回去吧"},
+    {"window": "我明天", "prompt": "youshiyaochuli", "expect": "有事要处理"},
+    {"window": "他这个人", "prompt": "henkaopu", "expect": "很靠谱"},
+    {"window": "这个价格", "prompt": "youdiantaigao", "expect": "有点太高"}
+  ]
+}
