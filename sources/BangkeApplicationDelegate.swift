@@ -12,6 +12,9 @@ import InputMethodKit
 
 final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegate, UNUserNotificationCenterDelegate {
   static let rimeWikiURL = URL(string: "https://github.com/rime/home/wiki")!
+  /// Posted with the new schema id when a session switches schema, so an open
+  /// settings window can follow along.
+  static let schemaChangedNotification = Notification.Name("BangkeSchemaChangedNotification")
   static let updateNotificationIdentifier = "BangkeUpdateNotification"
   static let notificationIdentifier = "BangkeNotification"
 
@@ -223,6 +226,7 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
       return
     }
     currentSchemaID = schemaID
+    NotificationCenter.default.post(name: Self.schemaChangedNotification, object: schemaID)
     let schema = BangkeConfig()
     if let panel = panel, let config = self.config {
       if schema.open(schemaID: schemaID, baseConfig: config) && schema.has(section: "style") {

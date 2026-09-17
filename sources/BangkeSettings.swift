@@ -225,7 +225,13 @@ extension BangkeSettings {
     // Each schema carries its own AI settings now, so a schema is written only
     // when its own values moved — editing the one on screen never disturbs the
     // others.
-    for schemaID in aiSchemas {
+    //
+    // Re-enumerated rather than reusing the load-time list: schemas can be added
+    // or removed while the window sits open, and writing to one that is gone
+    // would resurrect an orphan .custom.yaml. A schema added since load has no
+    // entry in aiPredict and is skipped, which is what we want — it keeps
+    // whatever it shipped with.
+    for schemaID in Self.aiWiredSchemas() {
       guard let predict = aiPredict[schemaID] else { continue }
       var file = RimePatchFile(contentsOf: Self.customFile(schemaID))
       let before = file.text

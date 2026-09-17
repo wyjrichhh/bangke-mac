@@ -230,5 +230,57 @@ do {
   check(BangkeSettings.load().aiPredict["rime_ice"]?.targetIndex == 5, "rime_ice reads back its own")
 }
 
+print("11. an open settings page follows a schema switch")
+do {
+  NSApp.bangkeAppDelegate.loadSettings(for: "luna_pinyin")
+  let model = BangkeSettingsModel()
+  check(model.settings.selectedAISchema == "luna_pinyin", "opens on the active schema",
+        "got \(model.settings.selectedAISchema)")
+
+  // The user hits Ctrl+` and switches to 雾凇 while the window is still open.
+  NSApp.bangkeAppDelegate.loadSettings(for: "rime_ice")
+  check(model.settings.selectedAISchema == "rime_ice",
+        "follows the switch instead of showing a stale schema",
+        "got \(model.settings.selectedAISchema)")
+
+  // A deliberate pick in the dropdown must not be yanked away afterwards.
+  model.schemaSelection.wrappedValue = "luna_pinyin"
+  NSApp.bangkeAppDelegate.loadSettings(for: "rime_ice")
+  check(model.settings.selectedAISchema == "luna_pinyin",
+        "a manual pick sticks", "got \(model.settings.selectedAISchema)")
+
+  NSApp.bangkeAppDelegate.loadSettings(for: "luna_pinyin")
+}
+
+print("12. saving re-checks which schemas are AI-wired")
+do {
+  // rime_ice exists at load time, so it is in the snapshot.
+  let settings = BangkeSettings.load()
+  check(settings.aiSchemas.contains("rime_ice"), "rime_ice loaded")
+
+  // Then it goes away before the save, the way a plum uninstall would. Deleting
+  // the files is not enough — get_schema_list() reports the deployed state, so
+  // the removal needs a redeploy to actually take effect.
+  let rimeIce = BangkeSettings.customFile("rime_ice")
+  let parkedCustom = try? String(contentsOf: rimeIce, encoding: .utf8)
+  let schemaFile = BangkeApp.userDir.appendingPathComponent("rime_ice.schema.yaml")
+  let parkedSchema = try? String(contentsOf: schemaFile, encoding: .utf8)
+  try? FileManager.default.removeItem(at: rimeIce)
+  try? FileManager.default.removeItem(at: schemaFile)
+  redeployForHarness()
+
+  var edited = settings
+  edited.aiPredict["rime_ice"]?.targetIndex = 9
+  _ = try edited.save()
+  check(!FileManager.default.fileExists(atPath: rimeIce.path),
+        "no orphan .custom.yaml resurrected for the removed schema")
+  check(BangkeSettings.load().aiSchemas == ["luna_pinyin"],
+        "the schema really is gone from librime's list",
+        "still got \(BangkeSettings.load().aiSchemas)")
+  // No restoring: each run wipes and rebuilds the harness user dir from scratch.
+  _ = parkedSchema
+  _ = parkedCustom
+}
+
 print(failures == 0 ? "\nALL PASS" : "\n\(failures) FAILURE(S)")
 exit(failures == 0 ? 0 : 1)

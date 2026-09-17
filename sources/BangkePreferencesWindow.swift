@@ -13,6 +13,17 @@ final class BangkeSettingsModel: ObservableObject {
   let colorSchemes: [String]
   let fontFamilies: [String]
 
+  /// Set once the user picks a schema in the dropdown. From then on the page
+  /// stops following the schema being typed with — that choice was deliberate.
+  private var userPickedSchema = false
+  private var schemaObserver: NSObjectProtocol?
+
+  deinit {
+    if let schemaObserver {
+      NotificationCenter.default.removeObserver(schemaObserver)
+    }
+  }
+
   init() {
     let loaded = BangkeSettings.load()
     settings = loaded
@@ -28,6 +39,32 @@ final class BangkeSettingsModel: ObservableObject {
       families.insert(loaded.appearance.fontFace, at: 0)
     }
     fontFamilies = families
+
+    // The window is created when it opens and released when it closes, so a
+    // schema added or removed in between is picked up by the next load(). While
+    // it is open, follow Ctrl+` switches instead of showing a stale schema.
+    schemaObserver = NotificationCenter.default.addObserver(
+      forName: BangkeApplicationDelegate.schemaChangedNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] notification in
+      guard let schemaID = notification.object as? String else { return }
+      self?.followActiveSchema(schemaID)
+    }
+  }
+
+  private func followActiveSchema(_ schemaID: String) {
+    guard !userPickedSchema, settings.aiSchemas.contains(schemaID) else { return }
+    settings.selectedAISchema = schemaID
+  }
+
+  /// Marks the dropdown as manually driven, so a later schema switch does not
+  /// override the pick.
+  var schemaSelection: Binding<String> {
+    Binding(
+      get: { self.settings.selectedAISchema },
+      set: { self.settings.selectedAISchema = $0; self.userPickedSchema = true }
+    )
   }
 
   /// Two-way binding for whichever schema's AI settings are on screen.
@@ -130,7 +167,7 @@ struct BangkePreferencesView: View {
       BehaviorSettingsTab(settings: $model.settings.behavior)
         .tabItem { Text("Behavior") }
       AIPredictSettingsTab(settings: model.aiBinding,
-                           selectedSchema: $model.settings.selectedAISchema,
+                           selectedSchema: model.schemaSelection,
                            schemas: model.settings.aiSchemas)
         .tabItem { Text("AI Prediction") }
     }

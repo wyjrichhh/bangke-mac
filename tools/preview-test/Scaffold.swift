@@ -17,16 +17,29 @@ enum BangkeApp {
 }
 
 final class BangkeApplicationDelegate {
+  /// Same name and value as the real one, so the settings model and the tests
+  /// agree on the notification the delegate posts on a schema switch.
+  static let schemaChangedNotification = Notification.Name("BangkeSchemaChangedNotification")
+
   var config: BangkeConfig?
   private(set) var currentSchemaID = ""
 
   /// Mirrors the real delegate's contract for this one field: it records which
-  /// schema is in use. The real one also reloads the panel theme, which needs a
-  /// panel the harness does not have.
+  /// schema is in use and announces it. The real one also reloads the panel
+  /// theme, which needs a panel the harness does not have.
   func loadSettings(for schemaID: String) {
     if schemaID.count == 0 || schemaID.first == "." { return }
     currentSchemaID = schemaID
+    NotificationCenter.default.post(name: Self.schemaChangedNotification, object: schemaID)
   }
+
+  // No-ops: BangkePreferencesView wires buttons to these, and the harness never
+  // presses them.
+  func deploy() {}
+  func reloadSettings() {}
+  func openRimeFolder() {}
+  func openLogFolder() {}
+  func preferencesDidClose() {}
 }
 
 extension NSApplication {
@@ -118,5 +131,13 @@ func initializeRimeForHarness() {
   rimeAPI.initialize(nil)
   // Deployment finishes asynchronously; section 9 is what confirms the schemas
   // actually landed, so measuring here would only report a misleading zero.
+  _ = rimeAPI.start_maintenance(true)
+}
+
+/// Re-runs deployment, which is what a real schema removal (via plum, or by
+/// deleting the file) goes through — `get_schema_list()` reports the deployed
+/// state, not what happens to be on disk right now.
+func redeployForHarness() {
+  let rimeAPI: RimeApi_stdbool = rime_get_api_stdbool().pointee
   _ = rimeAPI.start_maintenance(true)
 }
