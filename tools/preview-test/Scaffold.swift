@@ -18,12 +18,24 @@ enum BangkeApp {
 
 final class BangkeApplicationDelegate {
   var config: BangkeConfig?
+  private(set) var currentSchemaID = ""
+
+  /// Mirrors the real delegate's contract for this one field: it records which
+  /// schema is in use. The real one also reloads the panel theme, which needs a
+  /// panel the harness does not have.
+  func loadSettings(for schemaID: String) {
+    if schemaID.count == 0 || schemaID.first == "." { return }
+    currentSchemaID = schemaID
+  }
 }
 
 extension NSApplication {
-  /// nil config, so BangkeSettings.load() resolves values from the patch files
-  /// alone — the same fallback path a fresh install takes.
-  var bangkeAppDelegate: BangkeApplicationDelegate { BangkeApplicationDelegate() }
+  /// One shared instance (and a nil config, so BangkeSettings.load() resolves
+  /// values from the patch files alone — the path a fresh install takes). Shared
+  /// so a test can put a schema in place the way the controller would, by
+  /// calling loadSettings(for:) on it.
+  private static let testDelegate = BangkeApplicationDelegate()
+  var bangkeAppDelegate: BangkeApplicationDelegate { Self.testDelegate }
 }
 
 /// Minimal schema that librime will accept, so `get_schema_list()` has
@@ -47,14 +59,25 @@ private func schemaYAML(_ id: String) -> String {
   """
 }
 
+/// Carries every key the settings window writes, at its shipped default, so a
+/// save with nothing changed is a genuine no-op and section 10 can tell that
+/// apart from a real edit.
 private func customYAML(_ id: String) -> String {
   """
   patch:
     ai_predict:
       model_path: predict_models/zh-base-ct2-int8
-      min_input_length: 12
-      max_tokens: 64
+      enabled: true
       target_index: 1
+      min_input_length: 12
+      min_hanzi: 2
+      debounce_ms: 200
+      max_tokens: 64
+      quality: -1
+      search_range: 10
+      context_window_size: 10
+      min_context_prompt_length: 2
+      device: cpu
   """
 }
 

@@ -22,6 +22,9 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
   var showStatusIcon: Bool = true
   var statusItem: NSStatusItem?
   var preferencesWindowController: BangkePreferencesWindowController?
+  /// Last schema an input session reported. The settings window opens on it, so
+  /// the AI page shows the schema being typed with rather than an arbitrary one.
+  private(set) var currentSchemaID = ""
   // 未接入自有 appcast 前不启动更新器：Info.plist 里没有 SUFeedURL 时
   // startingUpdater 会失败告警，菜单项也不该出现。
   static var updatesEnabled: Bool {
@@ -219,6 +222,7 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
     if schemaID.count == 0 || schemaID.first == "." {
       return
     }
+    currentSchemaID = schemaID
     let schema = BangkeConfig()
     if let panel = panel, let config = self.config {
       if schema.open(schemaID: schemaID, baseConfig: config) && schema.has(section: "style") {

@@ -173,7 +173,7 @@ do {
   check(settings.appearance.inlinePreedit, "absent key falls back to the shipped default")
 
   settings.appearance.inlinePreedit = false
-  _ = try settings.save(writeAI: false)
+  _ = try settings.save()
   var text = try String(contentsOf: path, encoding: .utf8)
   check(text.contains("style/inline_preedit: false"), "written as false", text)
   check(text.contains("# 用户自己的注释"), "comment preserved")
@@ -181,44 +181,53 @@ do {
   check(!BangkeSettings.load().appearance.inlinePreedit, "reads back as false")
 
   settings.appearance.inlinePreedit = true
-  _ = try settings.save(writeAI: false)
+  _ = try settings.save()
   text = try String(contentsOf: path, encoding: .utf8)
   check(text.contains("style/inline_preedit: true"), "flips back to true", text)
   check(BangkeSettings.load().appearance.inlinePreedit, "reads back as true")
 }
 
-print("9. the AI page reads the first wired schema and writes all of them")
+print("9. every AI-wired schema gets its own settings, opened on the active one")
 do {
-  let schemas = BangkeSettings.aiWiredSchemas()
-  check(schemas == ["luna_pinyin", "rime_ice"], "both schemas detected as AI-wired", "got \(schemas)")
-  check(BangkeSettings.load().aiPredict.targetIndex == 1, "reads luna_pinyin's value")
+  let settings = BangkeSettings.load()
+  check(settings.aiSchemas == ["luna_pinyin", "rime_ice"], "both listed in order", "got \(settings.aiSchemas)")
+  check(settings.aiPredict.count == 2, "one entry per schema", "got \(settings.aiPredict.keys.sorted())")
+  check(settings.selectedAISchema == "luna_pinyin",
+        "falls back to the first when no session has reported one", "got \(settings.selectedAISchema)")
+
+  // The controller reports the schema in use; the page must follow it.
+  NSApp.bangkeAppDelegate.loadSettings(for: "rime_ice")
+  check(BangkeSettings.load().selectedAISchema == "rime_ice",
+        "opens on the schema being typed with", "got \(BangkeSettings.load().selectedAISchema)")
+  NSApp.bangkeAppDelegate.loadSettings(for: "luna_pinyin")
 }
 
-print("10. saving with the AI page untouched leaves a diverged schema alone")
+print("10. editing one schema leaves the others alone")
 do {
+  let luna = BangkeSettings.customFile("luna_pinyin")
   let rimeIce = BangkeSettings.customFile("rime_ice")
-  var file = RimePatchFile(contentsOf: rimeIce)
-  file.setScalar(inBlock: "ai_predict", "target_index", to: "7")
-  try file.write(to: rimeIce)
-  let before = try String(contentsOf: rimeIce, encoding: .utf8)
+  func text(_ url: URL) -> String { (try? String(contentsOf: url, encoding: .utf8)) ?? "" }
 
   var settings = BangkeSettings.load()
   settings.appearance.fontPoint = 19
-  _ = try settings.save(writeAI: false)
+  _ = try settings.save()
+  check(text(rimeIce) == text(rimeIce) && BangkeSettings.load().aiPredict["rime_ice"]?.targetIndex == 1,
+        "a save that touched no AI value left the defaults in place")
 
-  check(try String(contentsOf: rimeIce, encoding: .utf8) == before,
-        "rime_ice's ai_predict survives a save that did not touch AI")
-  check(RimePatchFile(contentsOf: rimeIce).scalar(inBlock: "ai_predict", "target_index") == "7",
-        "its own value is still 7")
-  check(BangkeSettings.divergentAISchemas() == ["rime_ice"],
-        "divergence is reported", "got \(BangkeSettings.divergentAISchemas())")
+  let rimeBefore = text(rimeIce)
+  let lunaBefore = text(luna)
 
-  // Now an actual AI edit must fan out and unify.
-  settings.aiPredict.targetIndex = 2
-  _ = try settings.save(writeAI: true)
-  check(RimePatchFile(contentsOf: rimeIce).scalar(inBlock: "ai_predict", "target_index") == "2",
-        "an explicit AI change does unify the diverged schema")
-  check(BangkeSettings.divergentAISchemas().isEmpty, "no divergence left")
+  settings = BangkeSettings.load()
+  settings.selectedAISchema = "rime_ice"
+  settings.aiPredict["rime_ice"]?.targetIndex = 5
+  _ = try settings.save()
+
+  check(text(rimeIce) != rimeBefore, "the edited schema was written")
+  check(RimePatchFile(contentsOf: rimeIce).scalar(inBlock: "ai_predict", "target_index") == "5",
+        "with the new value")
+  check(text(luna) == lunaBefore, "the schema not on screen was left untouched")
+  check(BangkeSettings.load().aiPredict["luna_pinyin"]?.targetIndex == 1, "luna keeps its own value")
+  check(BangkeSettings.load().aiPredict["rime_ice"]?.targetIndex == 5, "rime_ice reads back its own")
 }
 
 print(failures == 0 ? "\nALL PASS" : "\n\(failures) FAILURE(S)")

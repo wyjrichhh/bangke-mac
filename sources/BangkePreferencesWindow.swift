@@ -12,22 +12,10 @@ final class BangkeSettingsModel: ObservableObject {
 
   let colorSchemes: [String]
   let fontFamilies: [String]
-  /// AI-wired schemas that disagree with the one the AI page reads from. Shown
-  /// as a notice so unifying them on save is not a surprise.
-  let divergentAISchemas: [String]
-
-  /// The AI values as loaded. Saving with these still in place leaves every
-  /// schema file untouched, so a schema tuned differently keeps its own values.
-  private let loadedAIPredict: BangkeSettings.AIPredict
-  /// Restoring defaults is an explicit request to reset, even in the case where
-  /// the defaults happen to equal what was loaded.
-  private var aiResetRequested = false
 
   init() {
     let loaded = BangkeSettings.load()
     settings = loaded
-    loadedAIPredict = loaded.aiPredict
-    divergentAISchemas = BangkeSettings.divergentAISchemas()
 
     var schemes = BangkeSettings.colorSchemeNames()
     if !schemes.contains("native") {
@@ -42,13 +30,27 @@ final class BangkeSettingsModel: ObservableObject {
     fontFamilies = families
   }
 
+  /// Two-way binding for whichever schema's AI settings are on screen.
+  var aiBinding: Binding<BangkeSettings.AIPredict> {
+    Binding(
+      get: { self.settings.aiPredict[self.settings.selectedAISchema] ?? BangkeSettings.AIPredict() },
+      set: { self.settings.aiPredict[self.settings.selectedAISchema] = $0 }
+    )
+  }
+
+  /// Resets appearance and behaviour, plus the AI settings of the schema on
+  /// screen — the other schemas keep theirs, matching the page's own scope.
   func restoreDefaults() {
+    let schemas = settings.aiSchemas
+    let selected = settings.selectedAISchema
     settings = BangkeSettings()
-    aiResetRequested = true
+    settings.aiSchemas = schemas
+    settings.selectedAISchema = selected
+    settings.aiPredict = Dictionary(uniqueKeysWithValues: schemas.map { ($0, BangkeSettings.AIPredict()) })
   }
 
   func save() throws -> Bool {
-    try settings.save(writeAI: aiResetRequested || settings.aiPredict != loadedAIPredict)
+    try settings.save()
   }
 }
 
@@ -127,8 +129,9 @@ struct BangkePreferencesView: View {
         .tabItem { Text("Appearance") }
       BehaviorSettingsTab(settings: $model.settings.behavior)
         .tabItem { Text("Behavior") }
-      AIPredictSettingsTab(settings: $model.settings.aiPredict,
-                           divergentSchemas: model.divergentAISchemas)
+      AIPredictSettingsTab(settings: model.aiBinding,
+                           selectedSchema: $model.settings.selectedAISchema,
+                           schemas: model.settings.aiSchemas)
         .tabItem { Text("AI Prediction") }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -277,22 +280,17 @@ struct BehaviorSettingsTab: View {
 
 struct AIPredictSettingsTab: View {
   @Binding var settings: BangkeSettings.AIPredict
-  let divergentSchemas: [String]
+  @Binding var selectedSchema: String
+  let schemas: [String]
 
   var body: some View {
     Form {
-      if !divergentSchemas.isEmpty {
-        Section {
-          Label {
-            // One interpolated literal, not concatenation: `+` on two string
-            // literals collapses to a plain String and Text(String) skips the
-            // string catalog entirely.
-            Text("These input methods have different AI settings: \(divergentSchemas.joined(separator: ", ")). The values above come from the first one, and saving unifies them.")
-          } icon: {
-            Image(systemName: "exclamationmark.triangle")
-          }
-          .foregroundStyle(.secondary)
+      Section {
+        Picker("Input method", selection: $selectedSchema) {
+          ForEach(schemas, id: \.self) { Text($0).tag($0) }
         }
+        Text("Each input method keeps its own AI settings.")
+          .font(.caption).foregroundStyle(.secondary)
       }
 
       Section {

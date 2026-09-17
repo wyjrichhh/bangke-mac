@@ -65,7 +65,14 @@ struct BangkeSettings {
 
   var appearance = Appearance()
   var behavior = Behavior()
-  var aiPredict = AIPredict()
+
+  /// AI-wired schema ids, in the order librime lists them.
+  var aiSchemas: [String] = []
+  /// AI settings per schema. `ai_predict` is read by the plugin from the schema
+  /// config, so these are genuinely per-schema; the AI page edits one at a time.
+  var aiPredict: [String: AIPredict] = [:]
+  /// Which schema the AI page is showing. Defaults to the one being typed with.
+  var selectedAISchema = ""
 }
 
 // MARK: - Paths
@@ -152,24 +159,14 @@ extension BangkeSettings {
     behavior.shiftRightAction = string(defaultConfig, "ascii_composer/switch_key/Shift_R", config, behavior.shiftRightAction)
     settings.behavior = behavior
 
-    settings.aiPredict = loadAI()
-    return settings
-  }
-
-  private static func loadAI() -> AIPredict {
-    guard let schemaID = aiWiredSchemas().first else { return AIPredict() }
-    return loadAI(for: schemaID)
-  }
-
-  /// AI-wired schemas whose settings differ from the first one's. Empty in the
-  /// normal case, since saving fans the same values out to all of them; a
-  /// non-empty result means someone hand-edited one file and saving would
-  /// flatten that difference.
-  static func divergentAISchemas() -> [String] {
     let schemas = aiWiredSchemas()
-    guard let reference = schemas.first else { return [] }
-    let baseline = loadAI(for: reference)
-    return schemas.dropFirst().filter { loadAI(for: $0) != baseline }
+    settings.aiSchemas = schemas
+    settings.aiPredict = Dictionary(uniqueKeysWithValues: schemas.map { ($0, loadAI(for: $0)) })
+    // Open on the schema the user is actually typing with, so the page shows
+    // settings that are in effect rather than an arbitrary one.
+    let active = NSApp.bangkeAppDelegate.currentSchemaID
+    settings.selectedAISchema = schemas.contains(active) ? active : (schemas.first ?? "")
+    return settings
   }
 
   private static func loadAI(for schemaID: String) -> AIPredict {
@@ -205,9 +202,7 @@ extension BangkeSettings {
   /// - Parameter writeAI: whether the per-schema `ai_predict` blocks may be
   ///   rewritten. The AI page shows one schema's values and fans them out to
   ///   all of them, so writing when the user changed nothing would silently
-  ///   flatten a schema that had been tuned differently. Callers pass `false`
-  ///   when the AI values still match what was loaded.
-  func save(writeAI: Bool) throws -> Bool {
+  func save() throws -> Bool {
     var fullDeployment = false
 
     var bangke = RimePatchFile(contentsOf: Self.customFile(Brand.configName))
@@ -227,20 +222,19 @@ extension BangkeSettings {
     fullDeployment = defaultConfig.text != defaultBefore
     try defaultConfig.write(to: Self.customFile("default"))
 
-    // The schema files are left alone entirely when the AI values did not move:
-    // not writing is the only way to guarantee a schema that diverged keeps its
-    // own values until the user actually asks for a change.
-    if writeAI {
-      for schemaID in Self.aiWiredSchemas() {
-        var file = RimePatchFile(contentsOf: Self.customFile(schemaID))
-        let before = file.text
-        for (key, value) in aiEntries() {
-          file.setScalar(inBlock: Self.aiBlock, key, to: value.yaml)
-        }
-        if file.text != before {
-          fullDeployment = true
-          try file.write(to: Self.customFile(schemaID))
-        }
+    // Each schema carries its own AI settings now, so a schema is written only
+    // when its own values moved — editing the one on screen never disturbs the
+    // others.
+    for schemaID in aiSchemas {
+      guard let predict = aiPredict[schemaID] else { continue }
+      var file = RimePatchFile(contentsOf: Self.customFile(schemaID))
+      let before = file.text
+      for (key, value) in Self.aiEntries(for: predict) {
+        file.setScalar(inBlock: Self.aiBlock, key, to: value.yaml)
+      }
+      if file.text != before {
+        fullDeployment = true
+        try file.write(to: Self.customFile(schemaID))
       }
     }
     return fullDeployment
@@ -289,22 +283,22 @@ extension BangkeSettings {
     ]
   }
 
-  /// Keys written into each schema's `ai_predict:` block. `model_path` is
+  /// Keys written into a schema's `ai_predict:` block. `model_path` is
   /// deliberately absent: it is installed, not user-editable, and dropping it
   /// would leave the translator with no model to load.
-  func aiEntries() -> [(String, PatchValue)] {
+  static func aiEntries(for predict: AIPredict) -> [(String, PatchValue)] {
     [
-      ("enabled", .bool(aiPredict.enabled)),
-      ("target_index", .int(aiPredict.targetIndex)),
-      ("min_input_length", .int(aiPredict.minInputLength)),
-      ("min_hanzi", .int(aiPredict.minHanzi)),
-      ("debounce_ms", .int(aiPredict.debounceMs)),
-      ("max_tokens", .int(aiPredict.maxTokens)),
-      ("quality", .double(aiPredict.quality)),
-      ("search_range", .int(aiPredict.searchRange)),
-      ("context_window_size", .int(aiPredict.contextWindowSize)),
-      ("min_context_prompt_length", .int(aiPredict.minContextPromptLength)),
-      ("device", .string(aiPredict.device))
+      ("enabled", .bool(predict.enabled)),
+      ("target_index", .int(predict.targetIndex)),
+      ("min_input_length", .int(predict.minInputLength)),
+      ("min_hanzi", .int(predict.minHanzi)),
+      ("debounce_ms", .int(predict.debounceMs)),
+      ("max_tokens", .int(predict.maxTokens)),
+      ("quality", .double(predict.quality)),
+      ("search_range", .int(predict.searchRange)),
+      ("context_window_size", .int(predict.contextWindowSize)),
+      ("min_context_prompt_length", .int(predict.minContextPromptLength)),
+      ("device", .string(predict.device))
     ]
   }
 }

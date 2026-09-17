@@ -42,6 +42,9 @@ SOURCES=(
 OUT_DIR="${REPO_ROOT}/build/preview-test"   # build/ 已在 .gitignore 里
 mkdir -p "${OUT_DIR}"
 
+# librime 走 glog, 部署时会刷一屏 INFO; 只留 warning 及以上.
+export GLOG_minloglevel=2
+
 # -enable-bare-slash-regex: BangkeConfig 用了 Swift 正则字面量
 # -import-objc-header + -I: rime_api_stdbool.h 与 rime/key_table.h
 swiftc \
