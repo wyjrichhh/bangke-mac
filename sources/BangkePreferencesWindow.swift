@@ -86,7 +86,7 @@ final class BangkeSettingsModel: ObservableObject {
     settings.aiPredict = Dictionary(uniqueKeysWithValues: schemas.map { ($0, BangkeSettings.AIPredict()) })
   }
 
-  func save() throws -> Bool {
+  func save() throws -> BangkeSettings.SaveResult {
     try settings.save()
   }
 }
@@ -176,9 +176,9 @@ struct BangkePreferencesView: View {
 
   private var footer: some View {
     HStack {
+      // No open-folder / open-logs buttons here: the input method's own menu
+      // already has both, and duplicating them just crowds the window.
       Button("Restore Defaults") { model.restoreDefaults() }
-      Button("Open User Folder") { NSApp.bangkeAppDelegate.openRimeFolder() }
-      Button("Open Logs") { NSApp.bangkeAppDelegate.openLogFolder() }
       Spacer()
       Button("Cancel") { onClose() }
         .keyboardShortcut(.cancelAction)
@@ -190,13 +190,18 @@ struct BangkePreferencesView: View {
 
   private func save() {
     do {
-      let needsDeployment = try model.save()
-      if needsDeployment {
-        // Page size and the AI block feed schema compilation, which only a full
-        // maintenance pass picks up.
-        NSApp.bangkeAppDelegate.deploy()
-      } else {
-        NSApp.bangkeAppDelegate.reloadSettings()
+      let result = try model.save()
+      // Only touch librime if something actually moved. finalize() tears the
+      // engine down while the AI plugin's worker thread is running on it, so
+      // restarting for a write that changed nothing buys risk for no gain.
+      if result.changed {
+        if result.needsFullDeployment {
+          // Page size and the AI block feed schema compilation, which only a
+          // full maintenance pass picks up.
+          NSApp.bangkeAppDelegate.deploy()
+        } else {
+          NSApp.bangkeAppDelegate.reloadSettings()
+        }
       }
       onClose()
     } catch {

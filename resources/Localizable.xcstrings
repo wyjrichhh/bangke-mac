@@ -925,38 +925,6 @@
         }
       }
     },
-    "Open Logs": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "打开日志"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "開啟日誌"
-          }
-        }
-      }
-    },
-    "Open User Folder": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "打开用户目录"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "開啟使用者資料夾"
-          }
-        }
-      }
-    },
     "Preedit spacing": {
       "localizations": {
         "zh-Hans": {

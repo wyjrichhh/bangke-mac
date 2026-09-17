@@ -57,6 +57,18 @@ func bangkeView(in view: BangkePreviewCanvas) -> BangkeView? {
   view.subviews.first?.subviews.compactMap { $0 as? BangkeView }.first
 }
 
+/// Deployment runs off-thread, so poll rather than assuming it finished. Without
+/// this the schema-list assertions race the deploy and pass or fail by timing.
+func waitForSchemas(_ expected: [String], timeout: TimeInterval = 5) -> [String] {
+  let deadline = Date().addingTimeInterval(timeout)
+  var seen = BangkeSettings.load().aiSchemas
+  while seen != expected, Date() < deadline {
+    RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+    seen = BangkeSettings.load().aiSchemas
+  }
+  return seen
+}
+
 print("1. the text view is attached and laid out")
 do {
   let view = canvas(baseYAML("  text_orientation: horizontal"))
@@ -189,8 +201,9 @@ do {
 
 print("9. every AI-wired schema gets its own settings, opened on the active one")
 do {
+  let listed = waitForSchemas(["luna_pinyin", "rime_ice"])
+  check(listed == ["luna_pinyin", "rime_ice"], "both listed in order", "got \(listed)")
   let settings = BangkeSettings.load()
-  check(settings.aiSchemas == ["luna_pinyin", "rime_ice"], "both listed in order", "got \(settings.aiSchemas)")
   check(settings.aiPredict.count == 2, "one entry per schema", "got \(settings.aiPredict.keys.sorted())")
   check(settings.selectedAISchema == "luna_pinyin",
         "falls back to the first when no session has reported one", "got \(settings.selectedAISchema)")
@@ -230,7 +243,31 @@ do {
   check(BangkeSettings.load().aiPredict["rime_ice"]?.targetIndex == 5, "rime_ice reads back its own")
 }
 
-print("11. an open settings page follows a schema switch")
+print("11. a save that changes nothing reports that, so librime is left alone")
+do {
+  // Settle the files first: the previous sections wrote real changes.
+  var settings = BangkeSettings.load()
+  _ = try settings.save()
+
+  settings = BangkeSettings.load()
+  let untouched = try settings.save()
+  check(!untouched.changed, "an unchanged save reports no change")
+  check(!untouched.needsFullDeployment, "and no deployment")
+
+  settings = BangkeSettings.load()
+  settings.appearance.fontPoint += 1
+  let styled = try settings.save()
+  check(styled.changed, "a style edit reports a change")
+  check(!styled.needsFullDeployment, "but not a schema-affecting one")
+
+  settings = BangkeSettings.load()
+  settings.behavior.pageSize += 1
+  let paged = try settings.save()
+  check(paged.changed && paged.needsFullDeployment,
+        "a page-size edit needs a full deployment")
+}
+
+print("12. an open settings page follows a schema switch")
 do {
   NSApp.bangkeAppDelegate.loadSettings(for: "luna_pinyin")
   let model = BangkeSettingsModel()
@@ -252,7 +289,7 @@ do {
   NSApp.bangkeAppDelegate.loadSettings(for: "luna_pinyin")
 }
 
-print("12. saving re-checks which schemas are AI-wired")
+print("13. saving re-checks which schemas are AI-wired")
 do {
   // rime_ice exists at load time, so it is in the snapshot.
   let settings = BangkeSettings.load()
@@ -268,15 +305,15 @@ do {
   try? FileManager.default.removeItem(at: rimeIce)
   try? FileManager.default.removeItem(at: schemaFile)
   redeployForHarness()
+  let remaining = waitForSchemas(["luna_pinyin"])
+  check(remaining == ["luna_pinyin"], "the schema really is gone from librime's list",
+        "still got \(remaining)")
 
   var edited = settings
   edited.aiPredict["rime_ice"]?.targetIndex = 9
   _ = try edited.save()
   check(!FileManager.default.fileExists(atPath: rimeIce.path),
         "no orphan .custom.yaml resurrected for the removed schema")
-  check(BangkeSettings.load().aiSchemas == ["luna_pinyin"],
-        "the schema really is gone from librime's list",
-        "still got \(BangkeSettings.load().aiSchemas)")
   // No restoring: each run wipes and rebuilds the harness user dir from scratch.
   _ = parkedSchema
   _ = parkedCustom

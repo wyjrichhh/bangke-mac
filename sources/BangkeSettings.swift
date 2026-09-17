@@ -202,25 +202,43 @@ extension BangkeSettings {
   /// - Parameter writeAI: whether the per-schema `ai_predict` blocks may be
   ///   rewritten. The AI page shows one schema's values and fans them out to
   ///   all of them, so writing when the user changed nothing would silently
-  func save() throws -> Bool {
-    var fullDeployment = false
+  /// What a save actually did. The caller uses this to avoid restarting librime
+  /// for a write that turned out to be a no-op — `finalize()` tears the engine
+  /// down, and the AI plugin's worker thread is running on top of it.
+  struct SaveResult {
+    /// False when every file already held these values.
+    var changed = false
+    /// True when a schema-affecting file changed, which needs a full deployment
+    /// rather than a plain restart.
+    var needsFullDeployment = false
+  }
+
+  func save() throws -> SaveResult {
+    var result = SaveResult()
 
     var bangke = RimePatchFile(contentsOf: Self.customFile(Brand.configName))
+    let bangkeBefore = bangke.text
     for (key, value) in appearanceEntries() {
       bangke.setScalar(key, to: value.yaml)
     }
     for (key, value) in behaviorEntries() {
       bangke.setScalar(key, to: value.yaml)
     }
-    try bangke.write(to: Self.customFile(Brand.configName))
+    if bangke.text != bangkeBefore {
+      result.changed = true
+      try bangke.write(to: Self.customFile(Brand.configName))
+    }
 
     var defaultConfig = RimePatchFile(contentsOf: Self.customFile("default"))
     let defaultBefore = defaultConfig.text
     defaultConfig.setScalar("menu/page_size", to: PatchValue.int(behavior.pageSize).yaml)
     defaultConfig.setScalar("ascii_composer/switch_key/Shift_L", to: PatchValue.string(behavior.shiftLeftAction).yaml)
     defaultConfig.setScalar("ascii_composer/switch_key/Shift_R", to: PatchValue.string(behavior.shiftRightAction).yaml)
-    fullDeployment = defaultConfig.text != defaultBefore
-    try defaultConfig.write(to: Self.customFile("default"))
+    if defaultConfig.text != defaultBefore {
+      result.changed = true
+      result.needsFullDeployment = true
+      try defaultConfig.write(to: Self.customFile("default"))
+    }
 
     // Each schema carries its own AI settings now, so a schema is written only
     // when its own values moved — editing the one on screen never disturbs the
@@ -239,11 +257,12 @@ extension BangkeSettings {
         file.setScalar(inBlock: Self.aiBlock, key, to: value.yaml)
       }
       if file.text != before {
-        fullDeployment = true
+        result.changed = true
+        result.needsFullDeployment = true
         try file.write(to: Self.customFile(schemaID))
       }
     }
-    return fullDeployment
+    return result
   }
 
   /// Flat `patch:` paths for the `bangke` config, in the order they appear.
