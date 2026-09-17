@@ -162,8 +162,6 @@ do {
 
 print("8. inline preedit survives a settings round-trip through the patch file")
 do {
-  try? FileManager.default.removeItem(at: BangkeApp.userDir)
-  try! FileManager.default.createDirectory(at: BangkeApp.userDir, withIntermediateDirectories: true)
   let path = BangkeSettings.customFile(Brand.configName)
   try! """
   # 用户自己的注释
@@ -175,7 +173,7 @@ do {
   check(settings.appearance.inlinePreedit, "absent key falls back to the shipped default")
 
   settings.appearance.inlinePreedit = false
-  _ = try settings.save()
+  _ = try settings.save(writeAI: false)
   var text = try String(contentsOf: path, encoding: .utf8)
   check(text.contains("style/inline_preedit: false"), "written as false", text)
   check(text.contains("# 用户自己的注释"), "comment preserved")
@@ -183,10 +181,44 @@ do {
   check(!BangkeSettings.load().appearance.inlinePreedit, "reads back as false")
 
   settings.appearance.inlinePreedit = true
-  _ = try settings.save()
+  _ = try settings.save(writeAI: false)
   text = try String(contentsOf: path, encoding: .utf8)
   check(text.contains("style/inline_preedit: true"), "flips back to true", text)
   check(BangkeSettings.load().appearance.inlinePreedit, "reads back as true")
+}
+
+print("9. the AI page reads the first wired schema and writes all of them")
+do {
+  let schemas = BangkeSettings.aiWiredSchemas()
+  check(schemas == ["luna_pinyin", "rime_ice"], "both schemas detected as AI-wired", "got \(schemas)")
+  check(BangkeSettings.load().aiPredict.targetIndex == 1, "reads luna_pinyin's value")
+}
+
+print("10. saving with the AI page untouched leaves a diverged schema alone")
+do {
+  let rimeIce = BangkeSettings.customFile("rime_ice")
+  var file = RimePatchFile(contentsOf: rimeIce)
+  file.setScalar(inBlock: "ai_predict", "target_index", to: "7")
+  try file.write(to: rimeIce)
+  let before = try String(contentsOf: rimeIce, encoding: .utf8)
+
+  var settings = BangkeSettings.load()
+  settings.appearance.fontPoint = 19
+  _ = try settings.save(writeAI: false)
+
+  check(try String(contentsOf: rimeIce, encoding: .utf8) == before,
+        "rime_ice's ai_predict survives a save that did not touch AI")
+  check(RimePatchFile(contentsOf: rimeIce).scalar(inBlock: "ai_predict", "target_index") == "7",
+        "its own value is still 7")
+  check(BangkeSettings.divergentAISchemas() == ["rime_ice"],
+        "divergence is reported", "got \(BangkeSettings.divergentAISchemas())")
+
+  // Now an actual AI edit must fan out and unify.
+  settings.aiPredict.targetIndex = 2
+  _ = try settings.save(writeAI: true)
+  check(RimePatchFile(contentsOf: rimeIce).scalar(inBlock: "ai_predict", "target_index") == "2",
+        "an explicit AI change does unify the diverged schema")
+  check(BangkeSettings.divergentAISchemas().isEmpty, "no divergence left")
 }
 
 print(failures == 0 ? "\nALL PASS" : "\n\(failures) FAILURE(S)")

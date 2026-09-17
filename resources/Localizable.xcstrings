@@ -1248,6 +1248,22 @@
         }
       }
     },
+    "These input methods have different AI settings: %@. The values above come from the first one, and saving unifies them.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这些输入法的 AI 设置不一致：%@。上面的值取自第一个方案，保存后会统一。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這些輸入法的 AI 設定不一致：%@。上面的值取自第一個方案，儲存後會統一。"
+          }
+        }
+      }
+    },
     "Translucent background": {
       "localizations": {
         "zh-Hans": {

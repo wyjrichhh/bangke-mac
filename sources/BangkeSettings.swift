@@ -49,7 +49,7 @@ struct BangkeSettings {
     var shiftRightAction = "commit_code"
   }
 
-  struct AIPredict {
+  struct AIPredict: Equatable {
     var enabled = true
     var targetIndex = 1
     var minInputLength = 12
@@ -157,8 +157,23 @@ extension BangkeSettings {
   }
 
   private static func loadAI() -> AIPredict {
+    guard let schemaID = aiWiredSchemas().first else { return AIPredict() }
+    return loadAI(for: schemaID)
+  }
+
+  /// AI-wired schemas whose settings differ from the first one's. Empty in the
+  /// normal case, since saving fans the same values out to all of them; a
+  /// non-empty result means someone hand-edited one file and saving would
+  /// flatten that difference.
+  static func divergentAISchemas() -> [String] {
+    let schemas = aiWiredSchemas()
+    guard let reference = schemas.first else { return [] }
+    let baseline = loadAI(for: reference)
+    return schemas.dropFirst().filter { loadAI(for: $0) != baseline }
+  }
+
+  private static func loadAI(for schemaID: String) -> AIPredict {
     var predict = AIPredict()
-    guard let schemaID = aiWiredSchemas().first else { return predict }
     let file = RimePatchFile(contentsOf: customFile(schemaID))
     let config = BangkeConfig()
     let isOpen = config.open(schemaID: schemaID, baseConfig: nil)
@@ -187,7 +202,12 @@ extension BangkeSettings {
   /// Returns whether the engine needs a full deployment. Frontend style changes
   /// only need librime restarted; `menu/page_size` and the AI block feed schema
   /// compilation, which a quick maintenance pass is not guaranteed to pick up.
-  func save() throws -> Bool {
+  /// - Parameter writeAI: whether the per-schema `ai_predict` blocks may be
+  ///   rewritten. The AI page shows one schema's values and fans them out to
+  ///   all of them, so writing when the user changed nothing would silently
+  ///   flatten a schema that had been tuned differently. Callers pass `false`
+  ///   when the AI values still match what was loaded.
+  func save(writeAI: Bool) throws -> Bool {
     var fullDeployment = false
 
     var bangke = RimePatchFile(contentsOf: Self.customFile(Brand.configName))
@@ -207,14 +227,21 @@ extension BangkeSettings {
     fullDeployment = defaultConfig.text != defaultBefore
     try defaultConfig.write(to: Self.customFile("default"))
 
-    for schemaID in Self.aiWiredSchemas() {
-      var file = RimePatchFile(contentsOf: Self.customFile(schemaID))
-      let before = file.text
-      for (key, value) in aiEntries() {
-        file.setScalar(inBlock: Self.aiBlock, key, to: value.yaml)
+    // The schema files are left alone entirely when the AI values did not move:
+    // not writing is the only way to guarantee a schema that diverged keeps its
+    // own values until the user actually asks for a change.
+    if writeAI {
+      for schemaID in Self.aiWiredSchemas() {
+        var file = RimePatchFile(contentsOf: Self.customFile(schemaID))
+        let before = file.text
+        for (key, value) in aiEntries() {
+          file.setScalar(inBlock: Self.aiBlock, key, to: value.yaml)
+        }
+        if file.text != before {
+          fullDeployment = true
+          try file.write(to: Self.customFile(schemaID))
+        }
       }
-      fullDeployment = fullDeployment || file.text != before
-      try file.write(to: Self.customFile(schemaID))
     }
     return fullDeployment
   }

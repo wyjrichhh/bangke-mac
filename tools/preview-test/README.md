@@ -33,6 +33,21 @@ bash tools/preview-test/run.sh
 7. 画布被撑大时面板贴左上角，不是缩在左下角留一片空白
 8. `inline_preedit` 经过 `bangke.custom.yaml` 存取往返不丢，且注释与
    非本界面管理的键（`accent_text_color`）原样保留
+9. AI 页读的是**第一个**接好 AI 的方案，写的是**全部**方案
+10. 未改动 AI 就保存时，设置不同的那个方案**不被抹平**；一旦真的改了 AI，
+    才扇出统一，且分歧随之消失
+
+第 9、10 条针对的是「一个全局 AI 页 → 多个方案文件」这个映射的固有风险：
+界面显示的是第一个方案的值，若另一个方案被手改过，什么都不动就保存会把它抹掉。
+现在的处理是「AI 值没变就完全不碰方案文件」，同时把分歧显式提示出来。
+
+## 脚手架会真的部署一份 Rime
+
+`Scaffold.swift` 用最小 schema 在临时目录里搭一套 `luna_pinyin` + `rime_ice` 并跑
+`start_maintenance`，否则 `get_schema_list()` 返回空，第 9、10 条会**假通过**
+（没有方案就谈不上分歧，也谈不上被抹平）。基线 `default.yaml` 必须写在
+shared 目录里 —— 只写 `default.custom.yaml` 的话没有东西可 patch，部署不出
+schema_list。
 
 第 6、7、8 条是 2026-09-17 修的两个 bug 的回归：
 
