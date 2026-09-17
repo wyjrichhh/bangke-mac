@@ -76,6 +76,20 @@ struct BangkeApp {
             installer.select()
           }
           return true
+        case "--install-custom-config":
+          // postinstall uses this to lay down a shipped *.custom.yaml without
+          // discarding the values the user picked in the settings window.
+          guard args.count > 3 else {
+            print("usage: --install-custom-config <factory> <destination>")
+            exit(2)
+          }
+          let installed = BangkeSettings.installCustomConfig(
+            factory: URL(fileURLWithPath: args[2]),
+            destination: URL(fileURLWithPath: args[3]))
+          if !installed {
+            exit(1)
+          }
+          return true
         case "--build":
           BangkeApplicationDelegate.showMessage(msgText: NSLocalizedString("deploy_update", comment: ""))
           var builderTraits = RimeTraits.rimeStructInit()
@@ -173,6 +187,8 @@ Perform actions:
   --reload                   deploy
   --sync                     sync user data
   --build                    build all schemas in current directory
+  --install-custom-config <factory> <destination>
+                             write a shipped patch file, keeping user values
   --ascii                    turn on ASCII mode
   --nascii                   turn off ASCII mode
   --getascii                 get current ASCII mode status

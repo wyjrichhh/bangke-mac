@@ -42,12 +42,22 @@ echo "[$(date '+%F %T')] postinstall start, user=${LOGIN_USER}" >> "${LOG}"
 mkdir -p "${RIME_DIR}"
 
 if [ -d "${DEFAULTS_SRC}" ]; then
-    # Hard-overwrite: these are the engine wiring we need for AI candidates
-    # to appear at all. Old versions were already moved to Rime.backup-<ts>/
-    # by preinstall.
+    # Install the shipped files, but carry over the values the settings window
+    # owns (menu/page_size, ascii_composer/switch_key/*, the ai_predict block).
+    # The engine wiring in these same files is replaced unconditionally: it has
+    # to track the bundled plugins. The merge lives in the app binary so the
+    # YAML editing rules have one implementation, shared with the settings
+    # window. Falling back to a plain copy keeps a merge failure from leaving
+    # the user with no AI wiring at all.
     echo "[postinstall] installing default custom.yaml(s)" >> "${LOG}"
     for f in default.custom.yaml luna_pinyin.custom.yaml rime_ice.custom.yaml; do
-        [ -f "${DEFAULTS_SRC}/${f}" ] && cp "${DEFAULTS_SRC}/${f}" "${RIME_DIR}/${f}"
+        [ -f "${DEFAULTS_SRC}/${f}" ] || continue
+        if "${APP_BIN}" --install-custom-config "${DEFAULTS_SRC}/${f}" "${RIME_DIR}/${f}"; then
+            echo "[postinstall] merged ${f} (kept user-set values)" >> "${LOG}"
+        else
+            echo "[postinstall] merge failed for ${f}, falling back to plain copy" >> "${LOG}"
+            cp "${DEFAULTS_SRC}/${f}" "${RIME_DIR}/${f}"
+        fi
     done
     # Soft-write: bangke.custom.yaml only controls the panel's appearance
     # (font/color scheme/accent_text_color etc.). Existing users may

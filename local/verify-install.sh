@@ -106,13 +106,15 @@ hdr "配置文件 (yaml)  -- 工作区源 → .app 内嵌 → 用户 Rime"
 printf '  %-30s %-10s %-3s %-10s %-3s %-10s\n' \
   "文件" "源" "" ".app" "" "rime"
 
-for f in default.custom.yaml luna_pinyin.custom.yaml bangke.custom.yaml; do
+for f in default.custom.yaml luna_pinyin.custom.yaml rime_ice.custom.yaml bangke.custom.yaml; do
   H_SRC=$(hash8 "${DEFAULTS_DIR}/${f}")
   H_APP=$(hash8 "${APP}/Contents/SharedSupport/ai-predict-defaults/${f}")
   H_URM=$(hash8 "${URIME}/${f}")
   # 源 → .app 必须一致 (打包正确性), 不一致是 hard fail.
   M1=$(mark "$H_SRC" "$H_APP"); bump_on_mismatch $?
-  # .app → 用户 Rime 走 postinstall 软覆盖, 用户已有就保留, 允许不一致.
+  # .app → 用户 Rime: 三个方案文件走 postinstall 合并 (引擎接线取自 .app,
+  # 用户改过的值保留), bangke.custom.yaml 走软写入 (用户已有就完全不碰).
+  # 两者都会让 hash 对不上, 属正常, 不算失败.
   M2=$(mark_soft "$H_APP" "$H_URM")
   printf '  %-30s %-10s  %s  %-10s  %s  %-10s\n' \
     "$f" "$H_SRC" "$M1" "$H_APP" "$M2" "$H_URM"
@@ -235,8 +237,8 @@ do
 done
 
 # build/Release vs 系统装机 hash 比对 (installer 不改字节)
-H_R=$(hash8 "$SQ_BUILD_REL")
-H_I=$(hash8 "$SQ_INSTALLED")
+H_R=$(hash8 "$BUILD_REL")
+H_I=$(hash8 "$INSTALLED")
 printf '  hash build/Release   %s\n' "$H_R"
 printf '  hash installed       %s  ' "$H_I"
 if [ "$H_I" = "MISSING" ]; then
