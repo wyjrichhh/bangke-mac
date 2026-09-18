@@ -40,7 +40,13 @@ patch:
     model_path: predict_models/zh-base-ct2-int8
     min_input_length: 12
     min_context_prompt_length: 2
+    # 记录数上限，用于从前端拿不到真文本时的 commit_history 回退路径
     context_window_size: 10
+    # 真文本窗口的字符数上限（前端恒定读 64，在这里截断）。数字比现有
+    # commit_history 窗口（实测 10-25 字）略宽；调大会增加推理耗时。
+    context_window_chars: 24
+    # 关掉则一律走 commit_history 重建，等于本特性上线前的行为
+    use_frontend_context: true
     debounce_ms: 200
     max_tokens: 64
     device: cpu

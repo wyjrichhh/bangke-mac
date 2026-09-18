@@ -15,6 +15,14 @@ final class BangkeInputController: IMKInputController {
   private static let aiPumpInterval: TimeInterval = 0.15
   /// Hard stop so a composition left open cannot keep this ticking forever.
   private static let aiPumpTimeout: TimeInterval = 3
+  /// Property carrying the text before the cursor, read by the AI plugin.
+  private static let clientContextProperty = "ai_predict/client_context"
+  /// How far back to read. Deliberately generous: the plugin trims to its own
+  /// schema-configured limit (`ai_predict/context_window_chars`), so this
+  /// constant never has to be kept in step with that knob.
+  private static let clientContextReadLimit = 64
+  /// Read-back mismatches tolerated before this client stops being trusted.
+  private static let clientContextFailureLimit = 2
 
   private weak var client: IMKTextInput?
   private let rimeAPI: RimeApi_stdbool = rime_get_api_stdbool().pointee
@@ -34,6 +42,11 @@ final class BangkeInputController: IMKInputController {
   private var currentApp: String = ""
   private var aiPumpTimer: Timer?
   private var aiPumpDeadline: Date?
+  /// Whether this client's attributedSubstring can be believed. Cleared for
+  /// the rest of the session once read-back verification fails repeatedly.
+  private var trustedClientText = true
+  private var clientContextFailures = 0
+  private var lastPublishedContext: String?
 
   // swiftlint:disable:next cyclomatic_complexity
   override func handle(_ event: NSEvent!, client sender: Any!) -> Bool {
@@ -54,6 +67,11 @@ final class BangkeInputController: IMKInputController {
     self.client ?= sender as? IMKTextInput
     if let app = client?.bundleIdentifier(), currentApp != app {
       currentApp = app
+      // Whether the client answers attributedSubstring is a property of the
+      // app, not of this session's history, so a switch starts over.
+      trustedClientText = true
+      clientContextFailures = 0
+      lastPublishedContext = nil
       updateAppOptions()
     }
 
@@ -240,12 +258,19 @@ final class BangkeInputController: IMKInputController {
 
   override func commitComposition(_ sender: Any!) {
     self.client ?= sender as? IMKTextInput
-    if session != 0 {
-      if let input = rimeAPI.get_input(session) {
-        commit(string: String(cString: input))
-        rimeAPI.clear_composition(session)
-      }
+    guard session != 0 else { return }
+
+    // Commit what the composition would produce, not rime's raw input buffer:
+    // the buffer is pinyin, so a client that resets its input context
+    // mid-composition (Chromium-based ones do) would otherwise get
+    // "jiushizhegeshurukuangshizheyangde" inserted instead of the characters
+    // the user actually picked.
+    let preview = rimeCommitPreview()
+    let text = preview.isEmpty ? rimeInput() : preview
+    if !text.isEmpty {
+      commit(string: text)
     }
+    rimeAPI.clear_composition(session)
   }
 
   override func menu() -> NSMenu! {
@@ -435,10 +460,15 @@ private extension BangkeInputController {
       BangkeInputController.unknownAppCnt &+= 1
       return "UnknownApp\(BangkeInputController.unknownAppCnt)"
     }()
-    print("createSession: \(app)")
     currentApp = app
     session = rimeAPI.create_session()
     schemaId = ""
+    // A new session owns a fresh Context, so the property we published last is
+    // gone. Forget the cached value or an unchanged client text would be
+    // skipped as "already published" and the plugin would keep falling back.
+    lastPublishedContext = nil
+    trustedClientText = true
+    clientContextFailures = 0
 
     if session != 0 {
       updateAppOptions()
@@ -471,6 +501,84 @@ private extension BangkeInputController {
     clearChord()
   }
 
+  /// rime's raw input buffer. Returns "" when there is no composition.
+  private func rimeInput() -> String {
+    guard session != 0, let input = rimeAPI.get_input(session) else { return "" }
+    return String(cString: input)
+  }
+
+  /// What rime would commit right now -- the selected candidates -- without
+  /// waiting for a commit event. Empty when nothing is selectable.
+  private func rimeCommitPreview() -> String {
+    var ctx = RimeContext_stdbool.rimeStructInit()
+    guard session != 0, rimeAPI.get_context(session, &ctx) else { return "" }
+    defer { _ = rimeAPI.free_context(&ctx) }
+    return ctx.commit_text_preview.map { String(cString: $0) } ?? ""
+  }
+
+  /// The text immediately before the composition, as the host app reports it.
+  ///
+  /// Returns nil when the client declines to answer -- `attributedSubstring` is
+  /// @required but documented as "may return nil" -- which is not the same as a
+  /// cursor sitting at the start of the document. Either way the plugin is told
+  /// nothing, and it reads that as "fall back to commit history".
+  private func readClientContext() -> String? {
+    guard let client else { return nil }
+    // While composing, selectedRange() points *inside* the marked text, so
+    // reading back from it would hand the model our own preedit.
+    let marked = client.markedRange()
+    let end = marked.location != NSNotFound ? marked.location : client.selectedRange().location
+    guard end != NSNotFound, end > 0 else { return "" }
+    let start = max(0, end - Self.clientContextReadLimit)
+    return client.attributedSubstring(from: NSRange(location: start, length: end - start))?.string
+  }
+
+  /// Hand the plugin the text before the cursor.
+  ///
+  /// Skips the write when the value is unchanged: `Context::set_property` fires
+  /// its update notifier -- and a line in the main rime log, already 27MB -- on
+  /// every set, and during plain pinyin typing this text does not move at all.
+  private func publishClientContext() {
+    guard session != 0 else { return }
+    let context = trustedClientText ? (readClientContext() ?? "") : ""
+    guard context != lastPublishedContext else { return }
+    lastPublishedContext = context
+    rimeAPI.set_property(session, Self.clientContextProperty, context)
+  }
+
+  /// Check that the client reflects text we just inserted.
+  ///
+  /// A client that cannot echo back its own committed text cannot be trusted to
+  /// describe what precedes the cursor either, so stop asking it and let the
+  /// plugin fall back. One mismatch is tolerated: a client may legitimately
+  /// transform inserted text (smart quotes, autocorrect).
+  private func verifyClientText(inserted: String) {
+    guard trustedClientText, !inserted.isEmpty, let client else { return }
+    // NSNotFound means the client does not report a cursor position at all (Dia
+    // does this). That says nothing about whether the text is right, so it must
+    // not count as a mismatch -- otherwise a working client gets disabled on a
+    // technicality.
+    let cursor = client.selectedRange().location
+    guard cursor != NSNotFound else { return }
+    let units = inserted.utf16.count
+    guard cursor >= units else {
+      noteClientTextMismatch()
+      return
+    }
+    let range = NSRange(location: cursor - units, length: units)
+    guard client.attributedSubstring(from: range)?.string == inserted else {
+      noteClientTextMismatch()
+      return
+    }
+    clientContextFailures = 0
+  }
+
+  private func noteClientTextMismatch() {
+    clientContextFailures += 1
+    guard clientContextFailures >= Self.clientContextFailureLimit else { return }
+    trustedClientText = false
+  }
+
   func processKey(_ rimeKeycode: UInt32, modifiers rimeModifiers: UInt32) -> Bool {
     if let panel = NSApp.bangkeAppDelegate.panel {
       if panel.linear != rimeAPI.get_option(session, "_linear") {
@@ -480,6 +588,10 @@ private extension BangkeInputController {
         rimeAPI.set_option(session, "_vertical", panel.vertical)
       }
     }
+
+    // The plugin reads this from inside process_key (Compose -> translator
+    // Query), so it has to be in place before the key goes in.
+    publishClientContext()
 
     let handled = rimeAPI.process_key(session, Int32(rimeKeycode), Int32(rimeModifiers))
 
@@ -511,6 +623,11 @@ private extension BangkeInputController {
     if rimeAPI.get_commit(session, &commitText) {
       if let text = commitText.text {
         commit(string: String(cString: text))
+        // Committing changed the document, and the AI pump re-composes later
+        // (set_option -> RefreshNonComposition -> Compose), which asks the
+        // plugin for the window again. Republish now or that pass reads the
+        // pre-commit text.
+        publishClientContext()
       }
       _ = rimeAPI.free_commit(&commitText)
     }
@@ -635,7 +752,6 @@ private extension BangkeInputController {
 
   func commit(string: String) {
     guard let client = client else { return }
-
     let forceMarkedText =
       session != 0 &&
       rimeAPI.get_option(session, "force_marked_text_for_direct_commit")
@@ -655,6 +771,9 @@ private extension BangkeInputController {
     client.insertText(string, replacementRange: .empty)
     preedit = ""
     hidePalettes()
+
+    // Read back immediately, before anything else can move the cursor.
+    verifyClientText(inserted: string)
   }
 
   func show(preedit: String, selRange: NSRange, caretPos: Int) {
