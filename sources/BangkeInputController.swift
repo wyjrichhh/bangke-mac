@@ -536,8 +536,8 @@ private extension BangkeInputController {
   /// Hand the plugin the text before the cursor.
   ///
   /// Skips the write when the value is unchanged: `Context::set_property` fires
-  /// its update notifier -- and a line in the main rime log, already 27MB -- on
-  /// every set, and during plain pinyin typing this text does not move at all.
+  /// its update notifier on every set, which makes the plugin re-run inference,
+  /// and during plain pinyin typing this text does not move at all.
   private func publishClientContext() {
     guard session != 0 else { return }
     let context = trustedClientText ? (readClientContext() ?? "") : ""
