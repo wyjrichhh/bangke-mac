@@ -18,13 +18,11 @@ BIN       ?= infer
 CT2_LIB   := $(PLUGIN)/lib/libctranslate2.a
 GLOG_LIB  := $(LIBRIME)/lib/libglog.a
 
-# ruy：CT2 若以 WITH_RUY=ON 编译，int8 内核散落在多个子归档里，而静态库不会吸收
-# 依赖，必须合并后一并链接，否则链接期就报 KernelFloatNeon 之类的未定义符号。
-# 没有它 CT2 只能跑 float32（见 README「两版为何会有差异」）。
-RUY_BUILD := $(PLUGIN)/deps/CTranslate2/build/third_party/ruy
-ifneq ($(wildcard $(RUY_BUILD)/ruy/libruy*.a),)
-RUY_LIB   := $(BUILD)/libruy.a
-endif
+# ruy：CT2 以 WITH_RUY=ON 编译，int8/NEON 内核散落在多个子归档里，而静态库不会吸收
+# 依赖，不链接它链接期就报 KernelFloatNeon 之类的未定义符号，CT2 也因此只能跑
+# float32（见 README「两版为何会有差异」）。合并动作由插件 make deps 完成并落到
+# lib/libruy.a，这里直接取用——deps/CTranslate2 的构建目录可被 clean，不是稳定来源。
+RUY_LIB   := $(PLUGIN)/lib/libruy.a
 
 # glog 0.7+ 要求消费方定义这些宏（同插件 CMakeLists.txt）。
 # 括号会让 /bin/sh 误判语法，故加引号。
@@ -50,15 +48,12 @@ ifeq ($(wildcard $(CT2_LIB)),)
 $(error 找不到 $(CT2_LIB) — 先运行 ( cd $(PLUGIN) && make deps ))
 endif
 
+ifeq ($(wildcard $(RUY_LIB)),)
+$(error 找不到 $(RUY_LIB) — 先运行 ( cd $(PLUGIN) && make deps ))
+endif
+
 $(BIN): $(OBJS) $(RUY_LIB)
 	$(CXX) $(CXXFLAGS) $(OBJS) $(LDLIBS) -o $@
-
-$(RUY_LIB): | $(BUILD)
-	libtool -static -o $@ \
-	  $(RUY_BUILD)/ruy/libruy*.a \
-	  $(RUY_BUILD)/ruy/profiler/libruy_profiler_instrumentation.a \
-	  $(RUY_BUILD)/third_party/cpuinfo/libcpuinfo.a \
-	  $(RUY_BUILD)/third_party/cpuinfo/deps/clog/libclog.a
 
 $(BUILD)/main.o: main.cc | $(BUILD)
 	$(CXX) $(CXXFLAGS) $(GLOG_DEFS) $(INCLUDES) -c $< -o $@
