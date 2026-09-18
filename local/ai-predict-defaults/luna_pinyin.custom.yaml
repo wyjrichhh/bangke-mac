@@ -10,10 +10,16 @@ patch:
   # 去掉 [a-z] 后, 纯大写缩写(IBM/SSO)仍是独立 raw 段, 后续小写拼音切回 abc 段正常推理。
   recognizer/patterns/uppercase: "[A-Z][-_+.'0-9A-Z]*$"
 
-  # 默认输出简化字。@2 是朙月拼音的字形开关,四态 [zh_hant, zh_hans,
-  # zh_hant_hk, zh_hant_tw],原始默认无 reset(落 index 0 = 傳統漢字)。
-  # reset: 1 把默认改成 index 1 = 简化字,与简体训练的 CT2 模型对齐。
-  switches/@2/reset: 1
+  # 简繁方向与官方相反。@2 是朙月拼音的字形开关。官方词库存繁体,filters 挂
+  # t2s/t2hk/t2tw(繁→简/港/台);这里换成了 rime-ice 的简体分片,繁体字在表里
+  # 根本没有码,那套链就只是空转 —— 「傳統漢字」档会直接吐出简体。改用
+  # s2t/s2hk/s2tw 后表固定为简体,繁体只在输出时转,四态含义随之变成
+  # [简体, 繁體, 香港字形, 臺灣字形]。
+  switches/@2/options: [ zh_hans, zh_hant, zh_hant_hk, zh_hant_tw ]
+  switches/@2/states: [ 简化字, 繁體, 香港字形, 臺灣字形 ]
+  switches/@2/abbrev: [ 简, 繁, 港, 臺 ]
+  # 默认落 index 0 = 简体,与简体训练的 CT2 模型对齐
+  switches/@2/reset: 0
 
   # translators 必须整列重写: ai_predict_translator 要排在 **首位**,否则
   # MergedTranslation::Elect 不会先问它(见插件 CLAUDE.md)。Rime 的 list patch
@@ -27,23 +33,37 @@ patch:
     - reverse_lookup_translator
     - script_translator
 
-  # filters 用 list-append(@next)而不是整列替换!
-  # 朙月拼音原生 filters 是:
-  #   - simplifier@zh_hans        ← 绑定 @2 开关的 zh_hans 选项,执行 t2s 转换
-  #   - simplifier@zh_hant_hk
-  #   - simplifier@zh_hant_tw
-  #   - uniquifier
-  # 之前的模板用裸 `simplifier` 整列替换,删掉了带 @zh_hans 后缀的转换器。
-  # 裸 simplifier 默认监听老开关名 `simplification`,而新版 schema 已无此开关,
-  # 于是转换器永不触发:开关显示"简化字"、实际却输出繁体。改成 @next 只追加
-  # ai_predict_filter,保留原生转换链。
-  'engine/filters/@next': ai_predict_filter
+  # filters 必须整列重写: 简体档不挂转换器(表原生就是简体),繁体三档各挂一个
+  # s2* 转换器。清单等于改动前的最终顺序 —— emoji 在最前,ai_predict_filter 在
+  # 最后,简繁链夹在中间。
+  engine/filters:
+    - simplifier@emoji            # 中文词转 emoji, 须排在简繁转换之前
+    - simplifier@zh_hant
+    - simplifier@zh_hant_hk
+    - simplifier@zh_hant_tw
+    - uniquifier
+    - ai_predict_filter
 
-  # 让朙月拼音也支持 emoji: simplifier@emoji 用 opencc emoji.json 把中文词转
-  # emoji, @before 0 插到 filters 最前(在 simplifier@zh_hans 之前)。
-  # emoji.json/emoji.txt/others.txt 随 rime-ice 的 opencc/ 一并铺到
-  # ~/Library/Rime/opencc/(postinstall 处理), 两个方案共用。
-  'engine/filters/@before 0': simplifier@emoji
+  # option_name 不写会默认监听 "simplification"(新版 schema 已无此开关),转换器
+  # 于是永不触发: 开关显示"繁體"、实际却输出简体。必须显式绑定同名选项。
+  # s2* 数据随 rime-ice 的 opencc/ 一并铺到 ~/Library/Rime/opencc/。
+  zh_hant:
+    option_name: zh_hant
+    opencc_config: s2t.json
+    tips: none
+    excluded_types: [ reverse_lookup ]
+
+  zh_hant_hk:
+    option_name: zh_hant_hk
+    opencc_config: s2hk.json
+    tips: none
+    excluded_types: [ reverse_lookup ]
+
+  zh_hant_tw:
+    option_name: zh_hant_tw
+    opencc_config: s2tw.json
+    tips: none
+    excluded_types: [ reverse_lookup ]
 
   switches/@next:
     name: emoji

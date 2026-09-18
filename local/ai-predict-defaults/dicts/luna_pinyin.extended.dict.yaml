@@ -13,7 +13,6 @@
 name: luna_pinyin.extended
 version: "2026.08.13"
 sort: by_weight
-use_preset_vocabulary: true
 import_tables:
   - cn_dicts/8105        # 字表(tencent 自动注音依赖它)
   - cn_dicts/base        # 基础词库(两字词,含调频)
