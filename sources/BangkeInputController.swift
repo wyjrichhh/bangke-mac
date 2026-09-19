@@ -277,30 +277,13 @@ final class BangkeInputController: IMKInputController {
     let deploy = NSMenuItem(title: NSLocalizedString("Deploy", comment: "Menu item"), action: #selector(deploy), keyEquivalent: "`")
     deploy.target = self
     deploy.keyEquivalentModifierMask = [.control, .option]
-    let sync = NSMenuItem(title: NSLocalizedString("Sync user data", comment: "Menu item"), action: #selector(syncUserData), keyEquivalent: "")
-    sync.target = self
-    let logDir = NSMenuItem(title: NSLocalizedString("Logs...", comment: "Menu item"), action: #selector(openLogFolder), keyEquivalent: "")
-    logDir.target = self
     let setting = NSMenuItem(title: NSLocalizedString("Settings...", comment: "Menu item"),
                              action: #selector(BangkeInputController.showSettingsWindow), keyEquivalent: "")
     setting.target = self
-    let userDir = NSMenuItem(title: NSLocalizedString("User folder...", comment: "Menu item"), action: #selector(openRimeFolder), keyEquivalent: "")
-    userDir.target = self
-    let wiki = NSMenuItem(title: NSLocalizedString("Rime Wiki...", comment: "Menu item"), action: #selector(openWiki), keyEquivalent: "")
-    wiki.target = self
-    let update = NSMenuItem(title: NSLocalizedString("Check for updates...", comment: "Menu item"), action: #selector(checkForUpdates), keyEquivalent: "")
-    update.target = self
 
     let menu = NSMenu()
     menu.addItem(deploy)
-    menu.addItem(sync)
-    menu.addItem(logDir)
     menu.addItem(setting)
-    menu.addItem(userDir)
-    menu.addItem(wiki)
-    if BangkeApplicationDelegate.updatesEnabled {
-      menu.addItem(update)
-    }
 
     return menu
   }
@@ -309,28 +292,8 @@ final class BangkeInputController: IMKInputController {
     NSApp.bangkeAppDelegate.deploy()
   }
 
-  @objc func syncUserData() {
-    NSApp.bangkeAppDelegate.syncUserData()
-  }
-
-  @objc func openLogFolder() {
-    NSApp.bangkeAppDelegate.openLogFolder()
-  }
-
   @objc func showSettingsWindow() {
     NSApp.bangkeAppDelegate.showSettingsWindow()
-  }
-
-  @objc func openRimeFolder() {
-    NSApp.bangkeAppDelegate.openRimeFolder()
-  }
-
-  @objc func checkForUpdates() {
-    NSApp.bangkeAppDelegate.checkForUpdates()
-  }
-
-  @objc func openWiki() {
-    NSApp.bangkeAppDelegate.openWiki()
   }
 
   private(set) var specialCommentIndices: [ReservedPropertyKey: Set<Int>] = [:]

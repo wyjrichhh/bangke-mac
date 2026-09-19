@@ -11,7 +11,6 @@ import AppKit
 import InputMethodKit
 
 final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegate, UNUserNotificationCenterDelegate {
-  static let rimeWikiURL = URL(string: "https://github.com/rime/home/wiki")!
   /// Posted with the new schema id when a session switches schema, so an open
   /// settings window can follow along.
   static let schemaChangedNotification = Notification.Name("BangkeSchemaChangedNotification")
@@ -133,10 +132,6 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
     NSApp.setActivationPolicy(.accessory)
   }
 
-  func openLogFolder() {
-    NSWorkspace.shared.open(BangkeApp.logDir)
-  }
-
   /// 进程常驻跨天时，昨天留下的日志不必等到下次重启或部署才归档。
   private func scheduleLogHousekeeping() {
     let midnight = Calendar.current.nextDate(after: Date(), matching: DateComponents(hour: 0, minute: 0), matchingPolicy: .nextTime)
@@ -149,23 +144,6 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
   @objc private func onLogHousekeepingTimer() {
     LogHousekeeping.run(logDir: BangkeApp.logDir)
     scheduleLogHousekeeping()
-  }
-
-  func openRimeFolder() {
-    NSWorkspace.shared.open(BangkeApp.userDir)
-  }
-
-  func checkForUpdates() {
-    if updateController.updater.canCheckForUpdates {
-      print("Checking for updates")
-      updateController.updater.checkForUpdates()
-    } else {
-      print("Cannot check for updates")
-    }
-  }
-
-  func openWiki() {
-    NSWorkspace.shared.open(Self.rimeWikiURL)
   }
 
   static func showMessage(msgText: String?) {

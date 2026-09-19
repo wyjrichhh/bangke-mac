@@ -176,8 +176,6 @@ struct BangkePreferencesView: View {
 
   private var footer: some View {
     HStack {
-      // No open-folder / open-logs buttons here: the input method's own menu
-      // already has both, and duplicating them just crowds the window.
       Button("Restore Defaults") { model.restoreDefaults() }
       Spacer()
       Button("Cancel") { onClose() }

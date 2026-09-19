@@ -314,23 +314,6 @@
         }
       }
     },
-    "Check for updates...": {
-      "comment": "Menu item",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "检查新版本..."
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "檢查新版本..."
-          }
-        }
-      }
-    },
     "Chord duration": {
       "localizations": {
         "zh-Hans": {
@@ -748,23 +731,6 @@
         }
       }
     },
-    "Logs...": {
-      "comment": "Menu item",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "日志..."
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "日誌..."
-          }
-        }
-      }
-    },
     "Long": {
       "localizations": {
         "zh-Hans": {
@@ -1005,23 +971,6 @@
         }
       }
     },
-    "Rime Wiki...": {
-      "comment": "Menu item",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在线文档..."
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在線文檔..."
-          }
-        }
-      }
-    },
     "Save and Apply": {
       "localizations": {
         "zh-Hans": {
@@ -1060,7 +1009,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "用户设定..."
+            "value": "用户设置"
           }
         },
         "zh-Hant": {
@@ -1215,23 +1164,6 @@
         }
       }
     },
-    "Sync user data": {
-      "comment": "Menu item",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "同步用户数据"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "同步用戶資料"
-          }
-        }
-      }
-    },
     "Text orientation": {
       "localizations": {
         "zh-Hans": {
@@ -1308,23 +1240,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "可填 last、default，或 com.apple.keylayout.ABC 這類佈局名。"
-          }
-        }
-      }
-    },
-    "User folder...": {
-      "comment": "Menu item",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "用户目录…"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "使用者資料夾…"
           }
         }
       }

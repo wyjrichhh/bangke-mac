@@ -37,8 +37,6 @@ final class BangkeApplicationDelegate {
   // presses them.
   func deploy() {}
   func reloadSettings() {}
-  func openRimeFolder() {}
-  func openLogFolder() {}
   func preferencesDidClose() {}
 }
 
