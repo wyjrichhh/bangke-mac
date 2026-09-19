@@ -34,6 +34,10 @@ final class BangkeInputController: IMKInputController {
   private var schemaId: String = ""
   private var inlinePreedit = false
   private var inlineCandidate = false
+  /// Candidates in the menu as of the last refresh. AI-only mode reads it to
+  /// tell "a prediction is on screen" from "the model has not answered yet",
+  /// which decides whether Space has anything to confirm (see handle).
+  private var menuCandidateCount = 0
   private var chordKeyCodes: [UInt32] = .init(repeating: 0, count: BangkeInputController.keyRollOver)
   private var chordModifiers: [UInt32] = .init(repeating: 0, count: BangkeInputController.keyRollOver)
   private var chordKeyCount: Int = 0
@@ -135,6 +139,40 @@ final class BangkeInputController: IMKInputController {
                                                            shift: modifiers.contains(.shift),
                                                            caps: modifiers.contains(.capsLock))
         if rimeKeycode != 0 {
+          // AI-only mode has no dictionary to fall back on, so its menu is empty
+          // for as long as the model takes to answer. rime reads that as "nothing
+          // is selected" and Space then confirms the *raw input* -- the pinyin
+          // goes to the screen unread, and worse, enters commit history as
+          // context for the next prediction. Swallow it instead: with no
+          // candidate on screen there is nothing to confirm.
+          //
+          // The composition check matters: with nothing being composed the menu
+          // is empty too, and swallowing Space there would break ordinary
+          // typing. Only a live composition has raw input to confirm.
+          if NSApp.bangkeAppDelegate.aiOnly, rimeKeycode == XK_space,
+             modifiers.isDisjoint(with: [.command, .control, .option]),
+             menuCandidateCount == 0,
+             let input = rimeAPI.get_input(session), input.pointee != 0 {
+            handled = true
+            break
+          }
+          // AI-only mode wants digits and punctuation as ordinary input, but on
+          // a live menu they all have another job that gets first refusal:
+          // `selector` takes digits, `punctuator` commits punctuation straight
+          // through, and `key_binder` claims "," / "." / "[" / "]" for paging
+          // before either of them runs. Appending the character to the
+          // composition sidesteps that whole chain, so none of those have to be
+          // reconfigured or turned off. The composition check keeps the same
+          // characters working as themselves when nothing is being composed.
+          if NSApp.bangkeAppDelegate.aiOnly,
+             modifiers.isDisjoint(with: [.command, .control, .option]),
+             BangkeSettings.aiOnlyExtraInput.contains(char),
+             let input = rimeAPI.get_input(session), input.pointee != 0 {
+            _ = rimeAPI.set_input(session, String(cString: input) + String(char))
+            handled = true
+            rimeUpdate()
+            break
+          }
           let rimeModifiers = BangkeKeycode.osxModifiersToRime(modifiers: modifiers)
           handled = processKey(rimeKeycode, modifiers: rimeModifiers)
           rimeUpdate()
@@ -702,11 +740,13 @@ private extension BangkeInputController {
       let lastPage = ctx.menu.is_last_page
 
       let selRange = NSRange(location: start.utf16Offset(in: preedit), length: preedit.utf16.distance(from: start, to: end))
+      menuCandidateCount = candidates.count
       showPanel(preedit: inlinePreedit ? "" : preedit, selRange: selRange, caretPos: caretPos.utf16Offset(in: preedit),
                 candidates: candidates, comments: comments, labels: labels, highlighted: Int(ctx.menu.highlighted_candidate_index),
                 page: page, lastPage: lastPage)
       _ = rimeAPI.free_context(&ctx)
     } else {
+      menuCandidateCount = 0
       hidePalettes()
     }
 
@@ -718,6 +758,18 @@ private extension BangkeInputController {
     let forceMarkedText =
       session != 0 &&
       rimeAPI.get_option(session, "force_marked_text_for_direct_commit")
+
+    // A live marked text has to go before inserting. Well-behaved clients
+    // replace the marked range with the inserted string, but the ones that
+    // don't commit it *and* insert, so the text lands twice. AI-only mode makes
+    // that visible: with `inline_candidate` on, the marked text is the whole
+    // prediction, so the client ends up with the whole sentence twice.
+    if !preedit.isEmpty {
+      client.setMarkedText("",
+                           selectionRange: NSRange(location: 0, length: 0),
+                           replacementRange: .empty)
+      preedit = ""
+    }
 
     // Direct commits such as full-width punctuation do not necessarily have an
     // active marked-text phase. Some NSTextInputClient implementations require

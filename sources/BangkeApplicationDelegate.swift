@@ -21,6 +21,10 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
   var config: BangkeConfig?
   var panel: BangkePanel?
   var enableNotifications = false
+  /// Mirrors the active schema's `ai_predict/ai_only`, refreshed with the rest
+  /// of the per-schema settings. The candidate menu reads it to drop the slot
+  /// number, which only the renderer can do (see BangkePanel.update).
+  var aiOnly = false
   var showStatusIcon: Bool = true
   var statusItem: NSStatusItem?
   var preferencesWindowController: BangkePreferencesWindowController?
@@ -226,8 +230,12 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
     currentSchemaID = schemaID
     NotificationCenter.default.post(name: Self.schemaChangedNotification, object: schemaID)
     let schema = BangkeConfig()
+    // Read before the panel branch: the flag governs the candidate menu, which
+    // exists whether or not the schema restyles the panel.
+    let schemaOpen = schema.open(schemaID: schemaID, baseConfig: config)
+    aiOnly = schemaOpen && (schema.getBool("ai_predict/ai_only") ?? false)
     if let panel = panel, let config = self.config {
-      if schema.open(schemaID: schemaID, baseConfig: config) && schema.has(section: "style") {
+      if schemaOpen && schema.has(section: "style") {
         panel.load(config: schema, forDarkMode: false)
         panel.load(config: schema, forDarkMode: true)
       } else {

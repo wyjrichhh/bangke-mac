@@ -50,6 +50,22 @@
         }
       }
     },
+    "AI-only candidates": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅使用 AI 候选"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "僅使用 AI 候選"
+          }
+        }
+      }
+    },
     "Advanced": {
       "localizations": {
         "zh-Hans": {
@@ -298,6 +314,22 @@
         }
       }
     },
+    "Candidates come from the model alone: no dictionary words, one suggestion with no label.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候选只来自模型：不掺词库，只显示一条不带序号的预测。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "候選只來自模型：不摻詞庫，只顯示一條不帶序號的預測。"
+          }
+        }
+      }
+    },
     "Candidates per page": {
       "localizations": {
         "zh-Hans": {
@@ -330,6 +362,22 @@
         }
       }
     },
+    "Clear": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除"
+          }
+        }
+      }
+    },
     "Color": {
       "localizations": {
         "zh-Hans": {
@@ -358,6 +406,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "配色方案"
+          }
+        }
+      }
+    },
+    "Commit code": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上屏编码"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上屏編碼"
+          }
+        }
+      }
+    },
+    "Commit text": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上屏候选"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上屏候選"
           }
         }
       }
@@ -491,6 +571,22 @@
         }
       }
     },
+    "Do nothing": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不处理"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不處理"
+          }
+        }
+      }
+    },
     "Each input method keeps its own AI settings.": {
       "localizations": {
         "zh-Hans": {
@@ -519,6 +615,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "啟用 AI 聯想"
+          }
+        }
+      }
+    },
+    "Filter punctuation": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "过滤标点符号"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "過濾標點符號"
           }
         }
       }
@@ -615,6 +727,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "橫排"
+          }
+        }
+      }
+    },
+    "Inline ASCII": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内嵌英文"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "內嵌英文"
           }
         }
       }
@@ -923,22 +1051,6 @@
         }
       }
     },
-    "Quality": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "候选质量"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "候選品質"
-          }
-        }
-      }
-    },
     "Restore Defaults": {
       "localizations": {
         "zh-Hans": {
@@ -1160,6 +1272,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "狀態提示"
+          }
+        }
+      }
+    },
+    "Strips the punctuation the model predicts. Turn off to let candidates keep it.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剥掉模型预测出的标点；关闭后候选会保留标点。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剝掉模型預測出的標點；關閉後候選會保留標點。"
           }
         }
       }

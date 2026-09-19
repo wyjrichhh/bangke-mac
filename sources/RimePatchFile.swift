@@ -126,6 +126,38 @@ struct RimePatchFile {
     }
   }
 
+  /// Drop a top-level `patch:` key, if it is there.
+  ///
+  /// Restoring a key by writing its old value back would leave a line that no
+  /// longer does anything; deleting it is what makes "off" indistinguishable
+  /// from "never turned on".
+  mutating func removeScalar(_ key: String) {
+    let location = location(of: key)
+    if location.index >= 0 {
+      lines.remove(at: location.index)
+    }
+  }
+
+  /// Drop `key` from `block`, if it is there.
+  ///
+  /// `setScalar` only ever writes, so a key the window stops owning would sit in
+  /// the file forever — and the installer carries every existing `ai_predict`
+  /// key across an upgrade, so nothing else removes it either.
+  mutating func removeScalar(inBlock block: String, _ key: String) {
+    let blockLocation = location(of: block)
+    guard blockLocation.index >= 0 else { return }
+    for index in (blockLocation.index + 1)..<lines.count {
+      let line = lines[index]
+      let trimmed = line.trimmingCharacters(in: .whitespaces)
+      if trimmed.isEmpty { continue }
+      if leadingSpaces(line) <= blockLocation.indent { break }
+      if trimmed.hasPrefix(key + ":") {
+        lines.remove(at: index)
+        return
+      }
+    }
+  }
+
   func write(to url: URL) throws {
     try text.write(to: url, atomically: true, encoding: .utf8)
   }

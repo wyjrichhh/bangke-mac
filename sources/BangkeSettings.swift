@@ -51,12 +51,13 @@ struct BangkeSettings {
 
   struct AIPredict: Equatable {
     var enabled = true
+    var filterPunctuation = true
+    var aiOnly = false
     var targetIndex = 1
     var minInputLength = 12
     var minHanzi = 2
     var debounceMs = 200
     var maxTokens = 64
-    var quality = -1.0
     var searchRange = 10
     var contextWindowSize = 10
     var minContextPromptLength = 2
@@ -66,8 +67,8 @@ struct BangkeSettings {
   var appearance = Appearance()
   var behavior = Behavior()
 
-  /// AI-wired schema ids, in the order librime lists them.
-  var aiSchemas: [String] = []
+  /// AI-wired schemas, in the order librime lists them.
+  var aiSchemas: [NamedOption] = []
   /// AI settings per schema. `ai_predict` is read by the plugin from the schema
   /// config, so these are genuinely per-schema; the AI page edits one at a time.
   var aiPredict: [String: AIPredict] = [:]
@@ -87,30 +88,47 @@ extension BangkeSettings {
   /// Schemas whose config already resolves `ai_predict/model_path` — the ones
   /// the installer wired the translator and filter into. Writing AI settings
   /// anywhere else would have no effect.
-  static func aiWiredSchemas() -> [String] {
+  static func aiWiredSchemas() -> [NamedOption] {
     let rimeAPI: RimeApi_stdbool = rime_get_api_stdbool().pointee
     var list = RimeSchemaList()
     guard rimeAPI.get_schema_list(&list) else { return [] }
     defer { rimeAPI.free_schema_list(&list) }
 
-    var schemas: [String] = []
+    var schemas: [NamedOption] = []
     for index in 0..<Int(list.size) {
       guard let rawId = list.list[index].schema_id else { continue }
       let schemaID = String(cString: rawId)
       let config = BangkeConfig()
       if config.open(schemaID: schemaID, baseConfig: nil),
          config.getString("ai_predict/model_path") != nil {
-        schemas.append(schemaID)
+        schemas.append(NamedOption(schemaID, name: config.getString("schema/name")))
       }
       config.close()
     }
     return schemas
   }
 
-  /// Names of the shipped colour schemes, for the picker.
-  static func colorSchemeNames() -> [String] {
+  /// A config entry the pickers show by name while storing its key. Both the
+  /// colour schemes (`style/color_scheme` stores the key) and the AI-wired
+  /// schemas (`aiPredict` is keyed by the id) work this way: the key is an
+  /// ASCII identifier the user has no use for, the name is what the config
+  /// calls it in Chinese. The key is the fallback for an entry that has none.
+  struct NamedOption: Hashable, Identifiable {
+    let id: String
+    let name: String
+
+    init(_ id: String, name: String? = nil) {
+      self.id = id
+      self.name = name ?? id
+    }
+  }
+
+  /// The shipped colour schemes, in config order.
+  static func colorSchemes() -> [NamedOption] {
     guard let config = NSApp.bangkeAppDelegate.config, config.isOpen else { return [] }
-    return config.mapKeys(inSection: "preset_color_schemes")
+    return config.mapKeys(inSection: "preset_color_schemes").map { key in
+      NamedOption(key, name: config.getString("preset_color_schemes/\(key)/name"))
+    }
   }
 }
 
@@ -161,11 +179,12 @@ extension BangkeSettings {
 
     let schemas = aiWiredSchemas()
     settings.aiSchemas = schemas
-    settings.aiPredict = Dictionary(uniqueKeysWithValues: schemas.map { ($0, loadAI(for: $0)) })
+    settings.aiPredict = Dictionary(uniqueKeysWithValues: schemas.map { ($0.id, loadAI(for: $0.id)) })
     // Open on the schema the user is actually typing with, so the page shows
     // settings that are in effect rather than an arbitrary one.
     let active = NSApp.bangkeAppDelegate.currentSchemaID
-    settings.selectedAISchema = schemas.contains(active) ? active : (schemas.first ?? "")
+    settings.selectedAISchema = schemas.contains(where: { $0.id == active })
+      ? active : (schemas.first?.id ?? "")
     return settings
   }
 
@@ -177,13 +196,18 @@ extension BangkeSettings {
     defer { config.close() }
 
     predict.enabled = block(file, "enabled", isOpen ? config.getBool("ai_predict/enabled") : nil, predict.enabled)
+    predict.filterPunctuation = block(file, "filter_punctuation",
+                                      isOpen ? config.getBool("ai_predict/filter_punctuation") : nil,
+                                      predict.filterPunctuation)
+    predict.aiOnly = block(file, "ai_only",
+                           isOpen ? config.getBool("ai_predict/ai_only") : nil,
+                           predict.aiOnly)
     predict.device = block(file, "device", isOpen ? config.getString("ai_predict/device") : nil, predict.device)
     predict.targetIndex = block(file, "target_index", isOpen ? config.getInt("ai_predict/target_index") : nil, predict.targetIndex)
     predict.minInputLength = block(file, "min_input_length", isOpen ? config.getInt("ai_predict/min_input_length") : nil, predict.minInputLength)
     predict.minHanzi = block(file, "min_hanzi", isOpen ? config.getInt("ai_predict/min_hanzi") : nil, predict.minHanzi)
     predict.debounceMs = block(file, "debounce_ms", isOpen ? config.getInt("ai_predict/debounce_ms") : nil, predict.debounceMs)
     predict.maxTokens = block(file, "max_tokens", isOpen ? config.getInt("ai_predict/max_tokens") : nil, predict.maxTokens)
-    predict.quality = block(file, "quality", isOpen ? config.getDouble("ai_predict/quality")?.native : nil, predict.quality)
     predict.searchRange = block(file, "search_range", isOpen ? config.getInt("ai_predict/search_range") : nil, predict.searchRange)
     predict.contextWindowSize = block(file, "context_window_size", isOpen ? config.getInt("ai_predict/context_window_size") : nil, predict.contextWindowSize)
     predict.minContextPromptLength = block(file, "min_context_prompt_length",
@@ -249,17 +273,21 @@ extension BangkeSettings {
     // would resurrect an orphan .custom.yaml. A schema added since load has no
     // entry in aiPredict and is skipped, which is what we want — it keeps
     // whatever it shipped with.
-    for schemaID in Self.aiWiredSchemas() {
-      guard let predict = aiPredict[schemaID] else { continue }
-      var file = RimePatchFile(contentsOf: Self.customFile(schemaID))
+    for schema in Self.aiWiredSchemas() {
+      guard let predict = aiPredict[schema.id] else { continue }
+      var file = RimePatchFile(contentsOf: Self.customFile(schema.id))
       let before = file.text
       for (key, value) in Self.aiEntries(for: predict) {
         file.setScalar(inBlock: Self.aiBlock, key, to: value.yaml)
       }
+      Self.applySpellerAlphabet(for: predict, schemaID: schema.id, file: &file)
+      for key in Self.retiredAIKeys {
+        file.removeScalar(inBlock: Self.aiBlock, key)
+      }
       if file.text != before {
         result.changed = true
         result.needsFullDeployment = true
-        try file.write(to: Self.customFile(schemaID))
+        try file.write(to: Self.customFile(schema.id))
       }
     }
     return result
@@ -308,18 +336,108 @@ extension BangkeSettings {
     ]
   }
 
+  /// Keys the window used to write into `ai_predict:` and no longer owns. They
+  /// are dropped on the next save rather than left behind for good — the plugin
+  /// ignores an unknown key, so nothing else would ever remove it.
+  static let retiredAIKeys = ["quality"]
+
+  /// Characters the AI-only mode adds to a schema's speller alphabet.
+  ///
+  /// Digits and this punctuation set all have a job on the menu in normal use —
+  /// digits select a candidate, punctuation is committed straight through — and
+  /// the point of the mode is that they are plain input instead. Listing them in
+  /// the alphabet is what keeps them inside the pinyin segment, so the model
+  /// actually receives them; the frontend then feeds them with `set_input`
+  /// rather than as key events, which is what stops the selector and the
+  /// key_binder paging bindings from taking them first.
+  static let aiOnlyExtraInput = "1234567890,.;:!?"
+
+  /// Where the mode stashes the alphabet it replaced. It lives inside the
+  /// `ai_predict` block rather than a side file so it travels with the setting
+  /// it belongs to and survives the installer's block-preserving upgrade.
+  static let alphabetBackupKey = "alphabet_backup"
+
+  /// Set when the mode *created* the `speller/alphabet` line rather than
+  /// overrunning one the user already had. Turning the mode off deletes our own
+  /// line outright — restoring by writing the old value back would leave a line
+  /// that no longer does anything — but a line the user wrote is theirs, and it
+  /// gets its value back instead.
+  static let alphabetAddedKey = "alphabet_added"
+
+  /// Let digits ride along inside the pinyin segment.
+  ///
+  /// `abc_segmentor` decides what belongs to a segment by looking each character
+  /// up in `speller/alphabet`, and the plugin only ever sees a segment's own
+  /// input — so a digit the alphabet does not list becomes a segment of its own
+  /// and never reaches the model. The alphabet therefore has to carry digits,
+  /// and it cannot do so unconditionally: `speller` sits ahead of `selector` in
+  /// the schema's processor list, so listing digits there would also stop them
+  /// from selecting candidates in normal use. Extend on the way in, restore on
+  /// the way out.
+  private static func applySpellerAlphabet(for predict: AIPredict,
+                                           schemaID: String,
+                                           file: inout RimePatchFile) {
+    if predict.aiOnly {
+      // The original is captured once, off the effective alphabet, and only the
+      // first time — later saves must not back up the value they themselves
+      // extended, or the digits would become permanent.
+      //
+      // The extension itself is re-asserted on *every* save rather than only
+      // the first. That is what makes the mode survive an install: the installer
+      // rebuilds these files from the shipped copy and only carries over the
+      // keys it knows about, so anything it drops would otherwise stay dropped
+      // until the user toggled the mode off and back on.
+      let backup: String
+      if let captured = file.scalar(inBlock: aiBlock, alphabetBackupKey) {
+        backup = captured
+      } else if let original = spellerAlphabet(for: schemaID) {
+        backup = original
+        file.setScalar(inBlock: aiBlock, alphabetBackupKey,
+                       to: PatchValue.string(original).yaml)
+        // Recorded before the line is written, so it answers "did the user
+        // already have one?" rather than "is there one now?".
+        if file.scalar("speller/alphabet") == nil {
+          file.setScalar(inBlock: aiBlock, alphabetAddedKey,
+                         to: PatchValue.bool(true).yaml)
+        }
+      } else {
+        return
+      }
+      file.setScalar("speller/alphabet",
+                     to: PatchValue.string(backup + aiOnlyExtraInput).yaml)
+    } else if let backup = file.scalar(inBlock: aiBlock, alphabetBackupKey) {
+      if file.scalar(inBlock: aiBlock, alphabetAddedKey) != nil {
+        file.removeScalar("speller/alphabet")
+      } else {
+        file.setScalar("speller/alphabet", to: PatchValue.string(backup).yaml)
+      }
+      file.removeScalar(inBlock: aiBlock, alphabetAddedKey)
+      file.removeScalar(inBlock: aiBlock, alphabetBackupKey)
+    }
+  }
+
+  /// The schema's effective `speller/alphabet`: what the mode extends, and what
+  /// turning it off has to put back.
+  private static func spellerAlphabet(for schemaID: String) -> String? {
+    let config = BangkeConfig()
+    defer { config.close() }
+    guard config.open(schemaID: schemaID, baseConfig: nil) else { return nil }
+    return config.getString("speller/alphabet")
+  }
+
   /// Keys written into a schema's `ai_predict:` block. `model_path` is
   /// deliberately absent: it is installed, not user-editable, and dropping it
   /// would leave the translator with no model to load.
   static func aiEntries(for predict: AIPredict) -> [(String, PatchValue)] {
     [
       ("enabled", .bool(predict.enabled)),
+      ("filter_punctuation", .bool(predict.filterPunctuation)),
+      ("ai_only", .bool(predict.aiOnly)),
       ("target_index", .int(predict.targetIndex)),
       ("min_input_length", .int(predict.minInputLength)),
       ("min_hanzi", .int(predict.minHanzi)),
       ("debounce_ms", .int(predict.debounceMs)),
       ("max_tokens", .int(predict.maxTokens)),
-      ("quality", .double(predict.quality)),
       ("search_range", .int(predict.searchRange)),
       ("context_window_size", .int(predict.contextWindowSize)),
       ("min_context_prompt_length", .int(predict.minContextPromptLength)),
@@ -332,7 +450,14 @@ extension BangkeSettings {
 
 extension BangkeSettings {
   /// Patch keys the settings window owns, preserved across an upgrade.
-  static let preservedKeys = ["menu/page_size"]
+  ///
+  /// `speller/alphabet` belongs here for the same reason as `menu/page_size`:
+  /// the window writes it (the AI-only mode appends digits — see
+  /// applySpellerAlphabet), so an install that came with a fresh custom.yaml
+  /// would silently drop it, and the mode would lose digits inside the pinyin
+  /// segment. Dropping it looks exactly like "the feature stopped working":
+  /// digits fall back to the selector.
+  static let preservedKeys = ["menu/page_size", "speller/alphabet"]
 
   /// Key families the settings window owns. `ascii_composer/switch_key/*` only
   /// exists because the window wrote it — the shipped file has no such key.
@@ -367,6 +492,18 @@ extension BangkeSettings {
     // file still lands, because only the keys the user has are carried over.
     for (key, value) in existing.scalars(inBlock: aiBlock) {
       file.setScalar(inBlock: aiBlock, key, to: value)
+    }
+
+    // The alphabet extension is *derived* from the block — it exists only while
+    // `ai_only` is on, and it sits outside `ai_predict`, so carrying the block
+    // over only keeps it when the user's file happened to still have it. Any
+    // install that dropped it (which is exactly what this function used to do)
+    // would then need a settings save to repair. Recomputing it here makes an
+    // install land self-consistent, with no manual step.
+    if file.scalar(inBlock: aiBlock, "ai_only") == "true",
+       let backup = file.scalar(inBlock: aiBlock, alphabetBackupKey) {
+      file.setScalar("speller/alphabet",
+                     to: PatchValue.string(backup + aiOnlyExtraInput).yaml)
     }
 
     do {
@@ -404,10 +541,6 @@ private extension BangkeSettings {
 
   static func block(_ file: RimePatchFile, _ key: String, _ effective: Int?, _ fallback: Int) -> Int {
     file.scalar(inBlock: aiBlock, key).flatMap(Int.init) ?? effective ?? fallback
-  }
-
-  static func block(_ file: RimePatchFile, _ key: String, _ effective: Double?, _ fallback: Double) -> Double {
-    file.scalar(inBlock: aiBlock, key).flatMap(Double.init) ?? effective ?? fallback
   }
 
   static func block(_ file: RimePatchFile, _ key: String, _ effective: String?, _ fallback: String) -> String {

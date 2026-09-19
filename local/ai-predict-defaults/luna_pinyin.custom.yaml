@@ -94,3 +94,9 @@ patch:
     target_index: 1
     search_range: 10
     min_hanzi: 2
+    # 是否剥掉模型输出里的标点。默认 true 与上线前行为一致；关掉可保留
+    # 模型吐出的句读（如「，我们」），代价是上下文复读的标点残留也会进候选。
+    filter_punctuation: true
+    # 纯推理模式：候选只来自模型，词库词不参与，候选栏只剩一条不带序号的预测。
+    # 关掉即回到「词库 + AI」的混合候选。
+    ai_only: false

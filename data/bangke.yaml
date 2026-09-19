@@ -77,10 +77,10 @@ style:
 
 preset_color_schemes:
   native:
-    name: 系統配色
+    name: 系统配色
 
   aqua:
-    name: 碧水／Aqua
+    name: 碧水
     author: 佛振 <chen.sst@gmail.com>
     text_color: 0x606060
     back_color: 0xeeeceeee
@@ -92,7 +92,7 @@ preset_color_schemes:
     hilited_comment_text_color: 0xfcac9d
 
   azure:
-    name: 青天／Azure
+    name: 青天
     author: 佛振 <chen.sst@gmail.com>
     text_color: 0xcfa677
     candidate_text_color: 0xffeacc
@@ -103,7 +103,7 @@ preset_color_schemes:
     comment_text_color: 0xc69664
 
   luna:
-    name: 明月／Luna
+    name: 明月
     author: 佛振 <chen.sst@gmail.com>
     text_color: 0xa5a5a5
     back_color: 0xdd000000
@@ -115,7 +115,7 @@ preset_color_schemes:
     hilited_comment_text_color: 0x449c9d
 
   ink:
-    name: 墨池／Ink
+    name: 墨池
     author: 佛振 <chen.sst@gmail.com>
     text_color: 0x5a5a5a
     back_color: 0xeeffffff
@@ -128,7 +128,7 @@ preset_color_schemes:
     hilited_comment_text_color: 0x808080
 
   lost_temple:
-    name: 孤寺／Lost Temple
+    name: 孤寺
     author: 佛振 <chen.sst@gmail.com>, based on ir_black
     text_color: 0xe8f3f6
     back_color: 0xee303030
@@ -139,7 +139,7 @@ preset_color_schemes:
     hilited_comment_text_color: 0xbb203d34
 
   dark_temple:
-    name: 暗堂／Dark Temple
+    name: 暗堂
     author: 佛振 <chen.sst@gmail.com>, based on ir_black
     text_color: 0x92f6da
     back_color: 0x222222
@@ -151,7 +151,7 @@ preset_color_schemes:
     comment_text_color: 0x606cff
 
   psionics:
-    name: 幽能／Psionics
+    name: 幽能
     author: 雨過之後、佛振
     text_color: 0xc2c2c2
     back_color: 0x444444
@@ -165,7 +165,7 @@ preset_color_schemes:
     hilited_comment_text_color: 0x444444
 
   purity_of_form:
-    name: 純粹的形式／Purity of Form
+    name: 纯粹的形式
     author: 雨過之後、佛振
     text_color: 0xc2c222
     back_color: 0x444444
@@ -177,7 +177,7 @@ preset_color_schemes:
     comment_text_color: 0x808080
 
   purity_of_essence:
-    name: 純粹的本質／Purity of Essence
+    name: 纯粹的本质
     author: 佛振
     text_color: 0x2c2ccc
     back_color: 0xfafafa
@@ -189,7 +189,7 @@ preset_color_schemes:
     comment_text_color: 0x808080
 
   starcraft:
-    name: 星際我爭霸／StarCraft
+    name: 星际争霸
     author: Contralisk <contralisk@gmail.com>, original artwork by Blizzard Entertainment
     text_color: 0xccaa88
     candidate_text_color: 0x30bb55
@@ -208,7 +208,7 @@ preset_color_schemes:
     hilited_comment_text_color: 0x1010f0
 
   google:
-    name: 谷歌／Google
+    name: 谷歌
     author: skoj <skoj@qq.com>
     text_color: 0x666666 #拼音串
     candidate_text_color: 0x000000 #非第一候选项
@@ -222,7 +222,7 @@ preset_color_schemes:
     hilited_comment_text_color: 0xEBC6B0 #注解文字高亮
 
   solarized_rock:
-    name: 曬經石／Solarized Rock
+    name: 晒经石
     author: "Aben <tntaben@gmail.com>, based on Ethan Schoonover's Solarized color scheme"
     back_color: 0x362b00
     border_color: 0x362b00
@@ -235,7 +235,7 @@ preset_color_schemes:
     hilited_comment_text_color: 0x362b00
 
   clean_white:
-    name: 简约白／Clean White
+    name: 简约白
     author: Chongyu Zhu <lembacon@gmail.com>, based on 搜狗「简约白」
     candidate_list_layout: linear
     candidate_format: '%c %@'
@@ -255,7 +255,7 @@ preset_color_schemes:
     hilited_candidate_back_color: 0xeeeeee
 
   apathy:
-    name: 冷漠／Apathy
+    name: 冷漠
     author: LIANG Hai
     candidate_list_layout: linear  # 水平排列
     inline_preedit: true #单行显示，false双行显示
@@ -274,7 +274,7 @@ preset_color_schemes:
     comment_text_color: 0x999999  #拼音等提示文字颜色
 
   dust:
-    name: 浮尘／Dust
+    name: 浮尘
     author: Superoutman <asticosmo@gmail.com>
     candidate_list_layout: linear  # 水平排列
     inline_preedit: true #单行显示，false双行显示
@@ -299,7 +299,7 @@ preset_color_schemes:
     hilited_comment_text_color: 0x9e9e9e               # 注解文字高亮
 
   mojave_dark:
-    name: 沙漠夜／Mojave Dark
+    name: 沙漠夜
     author: xiehuc <xiehuc@gmail.com>
     candidate_list_layout: linear           # 水平排列
     inline_preedit: true                    # 单行显示，false双行显示
@@ -326,7 +326,7 @@ preset_color_schemes:
     #hilited_comment_text_color: 0xdedddd    # 注解文字高亮
 
   solarized_light:
-    name: 曬經・日／Solarized Light
+    name: 晒经·日
     author: 雪齋 <lyc20041@gmail.com>
     color_space: display_p3 # Only available on macOS 10.12+
     back_color: 0xF0E5F6FB                  #Lab 97 , 0 , 10
@@ -345,7 +345,7 @@ preset_color_schemes:
     hilited_text_color: 0x2C8BAE            #Lab 60 , 10, 65
 
   solarized_dark:
-    name: 曬經・月／Solarized Dark
+    name: 晒经·月
     author: 雪齋 <lyc20041@gmail.com>
     back_color: 0xF0352A0A                  #Lab 15 ,-12,-12
     border_color: 0x2A1F00                  #Lab 10 ,-12,-12
@@ -363,7 +363,7 @@ preset_color_schemes:
     hilited_text_color: 0xBE706D            #Lab 50 , 15,-45
 
   retro_green:
-    name: 綠色熒光屏
+    name: 绿色荧光屏
     author: 佛振 <chen.sst@gmail.com>
     text_color: 0x00FF00
     back_color: 0x000000
@@ -377,7 +377,7 @@ preset_color_schemes:
     border_color: 0x00FF00
 
   retro_orange:
-    name: 琥珀色熒光屏
+    name: 琥珀色荧光屏
     author: 佛振 <chen.sst@gmail.com>
     text_color: 0x0093FF
     back_color: 0x000000

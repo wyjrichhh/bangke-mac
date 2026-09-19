@@ -181,6 +181,13 @@ final class BangkePanel: NSPanel {
     let theme = view.currentTheme
     currentScreen()
 
+    // AI-only mode shows a single suggestion and nothing else, so the slot
+    // number in front of it is noise. Dropping the placeholder is the only way
+    // to lose it: leave it in and the row prints its own index instead.
+    let candidateFormat = NSApp.bangkeAppDelegate.aiOnly
+      ? theme.candidateFormat.replacing(/\[label\]\.?\s*/, with: "")
+      : theme.candidateFormat
+
     let text = NSMutableAttributedString()
     let preeditRange: NSRange
     let highlightedPreeditRange: NSRange
@@ -209,7 +216,7 @@ final class BangkePanel: NSPanel {
       let labelAttrs = i == index ? theme.labelHighlightedAttrs : theme.labelAttrs
       let commentAttrs = i == index ? theme.commentHighlightedAttrs : theme.commentAttrs
 
-      let label = if theme.candidateFormat.contains(/\[label\]/) {
+      let label = if candidateFormat.contains(/\[label\]/) {
         if labels.count > 1 && i < labels.count {
           labels[i]
         } else if labels.count == 1 && i < labels.first!.count {
@@ -224,7 +231,7 @@ final class BangkePanel: NSPanel {
       let candidate = candidates[i].precomposedStringWithCanonicalMapping
       let comment = comments[i].precomposedStringWithCanonicalMapping
 
-      let line = NSMutableAttributedString(string: theme.candidateFormat, attributes: labelAttrs)
+      let line = NSMutableAttributedString(string: candidateFormat, attributes: labelAttrs)
       for range in line.string.ranges(of: /\[candidate\]/) {
         let convertedRange = convert(range: range, in: line.string)
         line.addAttributes(attrs, range: convertedRange)

@@ -10,7 +10,7 @@ final class BangkeSettingsModel: ObservableObject {
   @Published var settings: BangkeSettings
   @Published var errorMessage: String?
 
-  let colorSchemes: [String]
+  let colorSchemes: [BangkeSettings.NamedOption]
   let fontFamilies: [String]
 
   /// Set once the user picks a schema in the dropdown. From then on the page
@@ -28,9 +28,12 @@ final class BangkeSettingsModel: ObservableObject {
     let loaded = BangkeSettings.load()
     settings = loaded
 
-    var schemes = BangkeSettings.colorSchemeNames()
-    if !schemes.contains("native") {
-      schemes.insert("native", at: 0)
+    // `native` is the app's own "follow the system" pseudo-scheme, injected
+    // when the config does not list it: without it the picker could not
+    // represent the value the app defaults to.
+    var schemes = BangkeSettings.colorSchemes()
+    if !schemes.contains(where: { $0.id == "native" }) {
+      schemes.insert(BangkeSettings.NamedOption("native"), at: 0)
     }
     colorSchemes = schemes
 
@@ -54,7 +57,7 @@ final class BangkeSettingsModel: ObservableObject {
   }
 
   private func followActiveSchema(_ schemaID: String) {
-    guard !userPickedSchema, settings.aiSchemas.contains(schemaID) else { return }
+    guard !userPickedSchema, settings.aiSchemas.contains(where: { $0.id == schemaID }) else { return }
     settings.selectedAISchema = schemaID
   }
 
@@ -83,7 +86,7 @@ final class BangkeSettingsModel: ObservableObject {
     settings = BangkeSettings()
     settings.aiSchemas = schemas
     settings.selectedAISchema = selected
-    settings.aiPredict = Dictionary(uniqueKeysWithValues: schemas.map { ($0, BangkeSettings.AIPredict()) })
+    settings.aiPredict = Dictionary(uniqueKeysWithValues: schemas.map { ($0.id, BangkeSettings.AIPredict()) })
   }
 
   func save() throws -> BangkeSettings.SaveResult {
@@ -212,18 +215,18 @@ struct BangkePreferencesView: View {
 
 struct AppearanceSettingsTab: View {
   @Binding var settings: BangkeSettings.Appearance
-  let colorSchemes: [String]
+  let colorSchemes: [BangkeSettings.NamedOption]
   let fontFamilies: [String]
 
   var body: some View {
     Form {
       Section("Color") {
         Picker("Color scheme", selection: $settings.colorScheme) {
-          ForEach(colorSchemes, id: \.self) { Text($0).tag($0) }
+          ForEach(colorSchemes) { Text($0.name).tag($0.id) }
         }
         Picker("Dark color scheme", selection: $settings.colorSchemeDark) {
           Text("Follow light scheme").tag("")
-          ForEach(colorSchemes, id: \.self) { Text($0).tag($0) }
+          ForEach(colorSchemes) { Text($0.name).tag($0.id) }
         }
         SettingsSlider(title: "Background opacity", value: $settings.alpha, range: 0...1, step: 0.05)
       }
@@ -282,7 +285,15 @@ struct AppearanceSettingsTab: View {
 struct BehaviorSettingsTab: View {
   @Binding var settings: BangkeSettings.Behavior
 
-  private let shiftActions = ["commit_code", "commit_text", "inline_ascii", "clear", "noop"]
+  /// Config value paired with the label the picker shows. The value is what
+  /// `ascii_composer/switch_key` stores, so only the label is translatable.
+  private let shiftActions: [(value: String, label: LocalizedStringKey)] = [
+    ("commit_code", "Commit code"),
+    ("commit_text", "Commit text"),
+    ("inline_ascii", "Inline ASCII"),
+    ("clear", "Clear"),
+    ("noop", "Do nothing")
+  ]
 
   var body: some View {
     Form {
@@ -299,10 +310,10 @@ struct BehaviorSettingsTab: View {
         SettingsSlider(title: "Candidates per page", value: $settings.pageSize, range: 1...20, step: 1)
         SettingsSlider(title: "Chord duration", value: $settings.chordDuration, range: 0...1, step: 0.01)
         Picker("Left Shift", selection: $settings.shiftLeftAction) {
-          ForEach(shiftActions, id: \.self) { Text($0).tag($0) }
+          ForEach(shiftActions, id: \.value) { Text($0.label).tag($0.value) }
         }
         Picker("Right Shift", selection: $settings.shiftRightAction) {
-          ForEach(shiftActions, id: \.self) { Text($0).tag($0) }
+          ForEach(shiftActions, id: \.value) { Text($0.label).tag($0.value) }
         }
       }
 
@@ -321,13 +332,13 @@ struct BehaviorSettingsTab: View {
 struct AIPredictSettingsTab: View {
   @Binding var settings: BangkeSettings.AIPredict
   @Binding var selectedSchema: String
-  let schemas: [String]
+  let schemas: [BangkeSettings.NamedOption]
 
   var body: some View {
     Form {
       Section {
         Picker("Input method", selection: $selectedSchema) {
-          ForEach(schemas, id: \.self) { Text($0).tag($0) }
+          ForEach(schemas) { Text($0.name).tag($0.id) }
         }
         Text("Each input method keeps its own AI settings.")
           .font(.caption).foregroundStyle(.secondary)
@@ -335,6 +346,12 @@ struct AIPredictSettingsTab: View {
 
       Section {
         Toggle("Enable AI prediction", isOn: $settings.enabled)
+        Toggle("Filter punctuation", isOn: $settings.filterPunctuation)
+        Text("Strips the punctuation the model predicts. Turn off to let candidates keep it.")
+          .font(.caption).foregroundStyle(.secondary)
+        Toggle("AI-only candidates", isOn: $settings.aiOnly)
+        Text("Candidates come from the model alone: no dictionary words, one suggestion with no label.")
+          .font(.caption).foregroundStyle(.secondary)
         SettingsSlider(title: "Candidate position", value: $settings.targetIndex, range: 0...20, step: 1)
         Text("AI candidates must sit below the search range to appear.")
           .font(.caption).foregroundStyle(.secondary)
@@ -350,7 +367,6 @@ struct AIPredictSettingsTab: View {
         SettingsSlider(title: "Context window", value: $settings.contextWindowSize, range: 1...50, step: 1)
         SettingsSlider(title: "Minimum context length", value: $settings.minContextPromptLength, range: 1...20, step: 1)
         SettingsSlider(title: "Max tokens", value: $settings.maxTokens, range: 8...512, step: 8)
-        SettingsSlider(title: "Quality", value: $settings.quality, range: -1...100, step: 1)
         Picker("Device", selection: $settings.device) {
           Text("CPU").tag("cpu")
         }
