@@ -25,6 +25,7 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
   var showStatusIcon: Bool = true
   var statusItem: NSStatusItem?
   var preferencesWindowController: BangkePreferencesWindowController?
+  private var logHousekeepingTimer: Timer?
   /// Last schema an input session reported. The settings window opens on it, so
   /// the AI page shows the schema being typed with rather than an arbitrary one.
   private(set) var currentSchemaID = ""
@@ -71,12 +72,14 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
     panel = BangkePanel(position: .zero)
     refreshStatusItem()
     addObservers()
+    scheduleLogHousekeeping()
   }
 
   func applicationWillTerminate(_ notification: Notification) {
     // swiftlint:disable:next notification_center_detachment
     NotificationCenter.default.removeObserver(self)
     DistributedNotificationCenter.default().removeObserver(self)
+    logHousekeepingTimer?.invalidate()
     panel?.hide()
     if let item = statusItem {
       NSStatusBar.system.removeStatusItem(item)
@@ -132,6 +135,20 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
 
   func openLogFolder() {
     NSWorkspace.shared.open(BangkeApp.logDir)
+  }
+
+  /// 进程常驻跨天时，昨天留下的日志不必等到下次重启或部署才归档。
+  private func scheduleLogHousekeeping() {
+    let midnight = Calendar.current.nextDate(after: Date(), matching: DateComponents(hour: 0, minute: 0), matchingPolicy: .nextTime)
+    logHousekeepingTimer = Timer(fireAt: midnight ?? Date().addingTimeInterval(24 * 60 * 60), interval: 0, target: self, selector: #selector(onLogHousekeepingTimer), userInfo: nil, repeats: false)
+    if let timer = logHousekeepingTimer {
+      RunLoop.main.add(timer, forMode: .common)
+    }
+  }
+
+  @objc private func onLogHousekeepingTimer() {
+    LogHousekeeping.run(logDir: BangkeApp.logDir)
+    scheduleLogHousekeeping()
   }
 
   func openRimeFolder() {
@@ -200,6 +217,9 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
 
   func startRime(fullCheck: Bool) {
     print("Initializing la rime...")
+    // 必须抢在 maintenance 之前：那个部署任务会删掉所有非今天的 *.log，先归档走，
+    // 7 天的历史才留得住（见 LogHousekeeping）。
+    LogHousekeeping.run(logDir: BangkeApp.logDir)
     rimeAPI.initialize(nil)
     if rimeAPI.start_maintenance(fullCheck) {
       _ = rimeAPI.deploy_config_file("\(Brand.configName).yaml", "config_version")

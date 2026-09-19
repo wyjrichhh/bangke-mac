@@ -22,6 +22,7 @@ The Xcode project is organized around one app target, `BangkePinyin.app`, plus b
 - `sources/ReservedProperty.swift`: reserved librime plugin property protocol for frontend UI hints such as comment highlighting and UI refresh.
 - `sources/BridgingFunctions.swift`: Swift helpers for C bridge structs, persistent C strings, optional assignment, and geometry utilities.
 - `sources/InputSource.swift`: Text Input Source registration, enable/disable/select helpers, and current input source lookup.
+- `sources/LogHousekeeping.swift`: runtime log rotation — non-today logs move into `archive/` and get gzipped, archives are kept for `retentionDays` (7).
 - `resources/Info.plist`: InputMethodKit registration metadata, input modes (`Hans`, `Hant`), IMK controller class names, connection name, Sparkle metadata, and input-source properties.
 - `resources/Bangke.entitlements`: disables App Sandbox, enables network client access, and disables library validation for bundled dylibs/frameworks.
 - `Contents/SharedSupport`: bundled Rime data, default schemas, OpenCC data, and `bangke.yaml`.
@@ -51,13 +52,13 @@ The Xcode project is organized around one app target, `BangkePinyin.app`, plus b
 
 `BangkeApplicationDelegate` owns global librime setup.
 
-- `setupRime()` creates the user data directory (`~/Library/Rime`) and temporary log directory, sets `RIME_LOG_DIR`, installs librime's notification handler, fills `RimeTraits`, and calls `rimeAPI.setup(&traits)`.
+- `setupRime()` creates the user data directory (`~/Library/Rime`) and the log directory (`~/Library/Logs/<product>/`), sets `RIME_LOG_DIR`, installs librime's notification handler, fills `RimeTraits`, and calls `rimeAPI.setup(&traits)`.
 - Important trait paths and identity fields:
   - `shared_data_dir`: app bundle shared support path.
   - `user_data_dir`: `~/Library/Rime`.
-  - `log_dir`: temporary `rime.bangke` directory.
+  - `log_dir`: `~/Library/Logs/<product>/`, shared by the frontend's glog and every plugin's own glog instance.
   - distribution code/name/version and `app_name = rime.bangke`.
-- `startRime(fullCheck:)` calls `rimeAPI.initialize(nil)`, then `start_maintenance(fullCheck)`. On successful maintenance it deploys `bangke.yaml` with the `config_version` marker.
+- `startRime(fullCheck:)` rotates the log directory (`LogHousekeeping.run`) — which must happen before librime's `clean_old_log_files` deployment task deletes every non-today `*.log` — then calls `rimeAPI.initialize(nil)`, then `start_maintenance(fullCheck)`. On successful maintenance it deploys `bangke.yaml` with the `config_version` marker.
 - `loadSettings()` opens base `bangke` config, refreshes notification/status-icon settings, and loads light/dark panel themes.
 - `loadSettings(for schemaID:)` opens the active schema config and, when it has a `style` section, overlays schema-specific panel style. Otherwise it falls back to base config.
 - `shutdownRime()` closes config and calls `rimeAPI.finalize()`.

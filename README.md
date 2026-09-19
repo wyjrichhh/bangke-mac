@@ -173,7 +173,7 @@ EOF
 
 | 类别 | 改动 | 用途 |
 |---|---|---|
-| **日志集中** | 日志路径迁至 `~/Library/Logs/BangkePinyin/`，并开放给插件 | 各插件的日志写到同一目录，方便排查（参见 [rime/librime#983](https://github.com/rime/librime/issues/983)） |
+| **日志集中** | 日志路径迁至 `~/Library/Logs/BangkePinyin/`，并开放给插件；非当天的日志自动归档压缩，保留 7 天 | 各插件的日志写到同一目录，方便排查（参见 [rime/librime#983](https://github.com/rime/librime/issues/983)） |
 | **语义化注释配色** | 配色方案新增 `accent_text_color` / `warning_text_color` 两个语义色字段 | 配色作者按「功能」命名颜色，无需记住具体索引 |
 | **插件↔前端通信协议** | 前端识别 `_*` 前缀的保留属性键：`_comment_highlight`（高亮候选注释）、`_comment_warning`（警告色）、`_refresh_ui`（异步完成后刷新候选栏） | 任何插件都能用少量代码驱动前端刷新候选栏、上色 |
 

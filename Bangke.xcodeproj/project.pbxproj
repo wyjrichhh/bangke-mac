@@ -84,6 +84,7 @@
 		B3216E5C2BF438F800E292D2 /* bangke.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B3216E5B2BF438F800E292D2 /* bangke.pdf */; };
 		B35D2FE82BF00839009D156B /* BridgingFunctions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B35D2FE72BF00839009D156B /* BridgingFunctions.swift */; };
 		B3A001022F260100009D156B /* ReservedProperty.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A001012F260100009D156B /* ReservedProperty.swift */; };
+		B4C000092F40000900ABCDEF /* LogHousekeeping.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C0000A2F40000A00ABCDEF /* LogHousekeeping.swift */; };
 		B38E9B912BE9AE1E0036ABEF /* BangkeApplicationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B38E9B902BE9AE1E0036ABEF /* BangkeApplicationDelegate.swift */; };
 		B38E9B952BEAFEFD0036ABEF /* BangkeInputController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B38E9B942BEAFEFD0036ABEF /* BangkeInputController.swift */; };
 		B39771232BECEA150093A49B /* MacOSKeyCodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39771222BECEA150093A49B /* MacOSKeyCodes.swift */; };
@@ -310,6 +311,7 @@
 		B32B80772BE7FAA200FCF3BC /* Bangke.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; name = Bangke.entitlements; path = resources/Bangke.entitlements; sourceTree = "<group>"; };
 		B35D2FE72BF00839009D156B /* BridgingFunctions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BridgingFunctions.swift; path = sources/BridgingFunctions.swift; sourceTree = "<group>"; };
 		B3A001012F260100009D156B /* ReservedProperty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReservedProperty.swift; path = sources/ReservedProperty.swift; sourceTree = "<group>"; };
+		B4C0000A2F40000A00ABCDEF /* LogHousekeeping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LogHousekeeping.swift; path = sources/LogHousekeeping.swift; sourceTree = "<group>"; };
 		B38E9B8F2BE9AE1E0036ABEF /* Bangke-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Bangke-Bridging-Header.h"; path = "sources/Bangke-Bridging-Header.h"; sourceTree = "<group>"; };
 		B38E9B902BE9AE1E0036ABEF /* BangkeApplicationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BangkeApplicationDelegate.swift; path = sources/BangkeApplicationDelegate.swift; sourceTree = "<group>"; };
 		B38E9B942BEAFEFD0036ABEF /* BangkeInputController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BangkeInputController.swift; path = sources/BangkeInputController.swift; sourceTree = "<group>"; };
@@ -367,6 +369,7 @@
 				B39771242BED899F0093A49B /* BangkeConfig.swift */,
 				B35D2FE72BF00839009D156B /* BridgingFunctions.swift */,
 				B3A001012F260100009D156B /* ReservedProperty.swift */,
+				B4C0000A2F40000A00ABCDEF /* LogHousekeeping.swift */,
 				B38E9B8F2BE9AE1E0036ABEF /* Bangke-Bridging-Header.h */,
 			);
 			name = Sources;
@@ -639,6 +642,7 @@
 				B39771272BED9B250093A49B /* BangkeTheme.swift in Sources */,
 				B35D2FE82BF00839009D156B /* BridgingFunctions.swift in Sources */,
 				B3A001022F260100009D156B /* ReservedProperty.swift in Sources */,
+				B4C000092F40000900ABCDEF /* LogHousekeeping.swift in Sources */,
 				B4C000022F40000200ABCDEF /* RimePatchFile.swift in Sources */,
 				B4C000042F40000400ABCDEF /* BangkeSettings.swift in Sources */,
 				B4C000062F40000600ABCDEF /* BangkePreviewView.swift in Sources */,
