@@ -589,7 +589,7 @@ struct AIPredictSettingsPage: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(maxWidth: 240)
+            .frame(maxWidth: 240, alignment: .trailing)
           } label: {
             SettingLabel("Input method", hint: "Each input method keeps its own AI settings.")
           }
