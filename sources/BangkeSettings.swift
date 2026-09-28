@@ -35,6 +35,14 @@ struct BangkeSettings {
     var spacing = 8.0
     var shadowSize = 0.0
     var alpha = 1.0
+
+    /// The form's view of `alpha`. `style/alpha` is opacity — 1 is opaque — and
+    /// stays that way, because that is what the key means in hand-written config
+    /// and in the Windows build; only this projection reads as its own name.
+    var transparency: Double {
+      get { 1 - alpha }
+      set { alpha = 1 - newValue }
+    }
     var candidateFormat = "[label]. [candidate] [comment]"
     var statusMessageType = "mix"
   }

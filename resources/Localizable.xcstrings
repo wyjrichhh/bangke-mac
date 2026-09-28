@@ -1,6 +1,22 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "1 is fully transparent, 0 is opaque.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 = 全透明，0 = 不透明。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 = 全透明，0 = 不透明。"
+          }
+        }
+      }
+    },
     "A new update is available": {
       "comment": "Update",
       "localizations": {
@@ -66,18 +82,18 @@
         }
       }
     },
-    "Advanced": {
+    "About": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "高级"
+            "value": "关于"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "進階"
+            "value": "關於"
           }
         }
       }
@@ -130,18 +146,18 @@
         }
       }
     },
-    "Background opacity": {
+    "Background transparency": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "背景不透明度"
+            "value": "背景透明度"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "背景不透明度"
+            "value": "背景透明度"
           }
         }
       }
@@ -346,18 +362,34 @@
         }
       }
     },
-    "Chord duration": {
+    "Check for Updates": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "和弦时长（秒）"
+            "value": "检查更新"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "和弦時長（秒）"
+            "value": "檢查更新"
+          }
+        }
+      }
+    },
+    "Chord duration": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "组合键时长（秒）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "組合鍵時長（秒）"
           }
         }
       }
@@ -486,6 +518,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "無法儲存設定"
+          }
+        }
+      }
+    },
+    "Dark": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深色"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深色"
           }
         }
       }
@@ -827,6 +875,22 @@
         }
       }
     },
+    "Light": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "浅色"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "淺色"
+          }
+        }
+      }
+    },
     "Line spacing": {
       "localizations": {
         "zh-Hans": {
@@ -907,6 +971,22 @@
         }
       }
     },
+    "Menu bar and typing behavior.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "菜单栏与输入行为。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選單列與輸入行為。"
+          }
+        }
+      }
+    },
     "Minimum characters": {
       "localizations": {
         "zh-Hans": {
@@ -967,6 +1047,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "混合"
+          }
+        }
+      }
+    },
+    "Model predictions for each input method.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "各输入方案的模型联想。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "各輸入方案的模型聯想。"
           }
         }
       }
@@ -1368,6 +1464,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "可填 last、default，或 com.apple.keylayout.ABC 這類佈局名。"
+          }
+        }
+      }
+    },
+    "Version [version] ([build])": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "版本 [version] ([build])"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "版本 [version] ([build])"
           }
         }
       }
