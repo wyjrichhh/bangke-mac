@@ -19,9 +19,8 @@ rime_shared_data_path="${app_root}/Contents/SharedSupport"
 "${app_executable}" --register-input-source
 
 if [ -z "${RIME_NO_PREBUILD}" ]; then
-    pushd "${rime_shared_data_path}" > /dev/null
-    "${app_executable}" --build
-    popd > /dev/null
+    # 以登录用户跑: user_data_dir 按 uid 解析, root 跑会落到 /var/root。
+    /usr/bin/sudo -u "${login_user}" "${app_executable}" --build
 fi && (
     /usr/bin/sudo -u "${login_user}" "${app_executable}" --enable-input-source
     /usr/bin/sudo -u "${login_user}" "${app_executable}" --select-input-source

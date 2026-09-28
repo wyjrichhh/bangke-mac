@@ -34,7 +34,7 @@
    ( cd librime/plugins/ai-predict && make deps )
    ```
 
-2. 模型已下载到 `~/Library/Rime/predict_models/zh-base-ct2-int8/`
+2. 模型已下载到 `~/Library/BangkePinyin/predict_models/zh-base-ct2-int8/`
    （见插件 README「获取模型」）。
 
 ### int8 与 float32

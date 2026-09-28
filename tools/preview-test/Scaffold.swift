@@ -11,7 +11,7 @@ import AppKit
 enum BangkeApp {
   /// Throwaway Rime user dir. Doubles as librime's user_data_dir below, because
   /// BangkeSettings resolves <schema>.custom.yaml relative to it — production
-  /// has the same identity (both are ~/Library/Rime).
+  /// has the same identity (both are ~/Library/BangkePinyin).
   static let userDir = URL(fileURLWithPath: NSTemporaryDirectory())
     .appendingPathComponent("bangke-preview-test-rime", isDirectory: true)
 }
@@ -38,6 +38,11 @@ final class BangkeApplicationDelegate {
   func deploy() {}
   func reloadSettings() {}
   func preferencesDidClose() {}
+
+  /// AboutSettingsPage gates its update button on this; the harness has no
+  /// Sparkle, so it just stays hidden.
+  static var updatesEnabled: Bool { false }
+  func checkForUpdates() {}
 }
 
 extension NSApplication {

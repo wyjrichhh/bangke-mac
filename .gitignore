@@ -27,3 +27,5 @@ tools/*/run
 *~
 .*.swp
 .DS_Store
+# Rime 运行期元数据 (install_time / installation_id), 不是源码
+installation.yaml

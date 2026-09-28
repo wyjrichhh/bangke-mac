@@ -52,10 +52,10 @@ The Xcode project is organized around one app target, `BangkePinyin.app`, plus b
 
 `BangkeApplicationDelegate` owns global librime setup.
 
-- `setupRime()` creates the user data directory (`~/Library/Rime`) and the log directory (`~/Library/Logs/<product>/`), sets `RIME_LOG_DIR`, installs librime's notification handler, fills `RimeTraits`, and calls `rimeAPI.setup(&traits)`.
+- `setupRime()` creates the user data directory (`~/Library/BangkePinyin`, private — never Rime's shared `~/Library/Rime`, to avoid cross-contaminating Squirrel installs) and the log directory (`~/Library/Logs/<product>/`), sets `RIME_LOG_DIR`, installs librime's notification handler, fills `RimeTraits`, and calls `rimeAPI.setup(&traits)`.
 - Important trait paths and identity fields:
   - `shared_data_dir`: app bundle shared support path.
-  - `user_data_dir`: `~/Library/Rime`.
+  - `user_data_dir`: `~/Library/BangkePinyin`.
   - `log_dir`: `~/Library/Logs/<product>/`, shared by the frontend's glog and every plugin's own glog instance.
   - distribution code/name/version and `app_name = rime.bangke`.
 - `startRime(fullCheck:)` rotates the log directory (`LogHousekeeping.run`) — which must happen before librime's `clean_old_log_files` deployment task deletes every non-today `*.log` — then calls `rimeAPI.initialize(nil)`, then `start_maintenance(fullCheck)`. On successful maintenance it deploys `bangke.yaml` with the `config_version` marker.

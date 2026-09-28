@@ -8,9 +8,9 @@
 #   @APP_NAME@/Contents/SharedSupport/ai-predict-defaults/*.custom.yaml
 #   @APP_NAME@/Contents/SharedSupport/predict_models/zh-base-ct2-int8/
 #
-# 用户目标位置:
-#   ~/Library/Rime/{default,luna_pinyin}.custom.yaml
-#   ~/Library/Rime/predict_models/zh-base-ct2-int8/
+# 用户目标位置 (Bangke 私有目录, 不与鼠须管共用的 ~/Library/Rime 混):
+#   ~/Library/BangkePinyin/{default,luna_pinyin}.custom.yaml
+#   ~/Library/BangkePinyin/predict_models/zh-base-ct2-int8/
 #
 
 set -e
@@ -19,7 +19,7 @@ LOGIN_USER=$(/usr/bin/stat -f%Su /dev/console)
 LOGIN_HOME=$(/usr/bin/dscl . -read "/Users/${LOGIN_USER}" NFSHomeDirectory 2>/dev/null | awk '{print $2}')
 [ -n "${LOGIN_HOME}" ] || LOGIN_HOME="/Users/${LOGIN_USER}"
 
-RIME_DIR="${LOGIN_HOME}/Library/Rime"
+BANGKE_DIR="${LOGIN_HOME}/Library/BangkePinyin"
 LOG_DIR="${LOGIN_HOME}/Library/Logs/BangkePinyin"
 mkdir -p "${LOG_DIR}"
 # 安装脚本以 root 跑, 建出来的目录属主会是 root; 而输入法进程以登录用户身份运行,
@@ -35,11 +35,11 @@ SHARED="${APP_ROOT}/Contents/SharedSupport"
 DEFAULTS_SRC="${SHARED}/ai-predict-defaults"
 RIME_ICE_SRC="${SHARED}/rime-ice"
 MODEL_SRC="${SHARED}/predict_models/zh-base-ct2-int8"
-MODEL_DST="${RIME_DIR}/predict_models/zh-base-ct2-int8"
+MODEL_DST="${BANGKE_DIR}/predict_models/zh-base-ct2-int8"
 
 echo "[$(date '+%F %T')] postinstall start, user=${LOGIN_USER}" >> "${LOG}"
 
-mkdir -p "${RIME_DIR}"
+mkdir -p "${BANGKE_DIR}"
 
 if [ -d "${DEFAULTS_SRC}" ]; then
     # Install the shipped files, but carry over the values the settings window
@@ -52,11 +52,11 @@ if [ -d "${DEFAULTS_SRC}" ]; then
     echo "[postinstall] installing default custom.yaml(s)" >> "${LOG}"
     for f in default.custom.yaml luna_pinyin.custom.yaml rime_ice.custom.yaml; do
         [ -f "${DEFAULTS_SRC}/${f}" ] || continue
-        if "${APP_BIN}" --install-custom-config "${DEFAULTS_SRC}/${f}" "${RIME_DIR}/${f}"; then
+        if "${APP_BIN}" --install-custom-config "${DEFAULTS_SRC}/${f}" "${BANGKE_DIR}/${f}"; then
             echo "[postinstall] merged ${f} (kept user-set values)" >> "${LOG}"
         else
             echo "[postinstall] merge failed for ${f}, falling back to plain copy" >> "${LOG}"
-            cp "${DEFAULTS_SRC}/${f}" "${RIME_DIR}/${f}"
+            cp "${DEFAULTS_SRC}/${f}" "${BANGKE_DIR}/${f}"
         fi
     done
     # Soft-write: bangke.custom.yaml only controls the panel's appearance
@@ -65,21 +65,21 @@ if [ -d "${DEFAULTS_SRC}" ]; then
     # font choices just to set our accent color. So we only seed it when the
     # file is truly absent. Existing users can opt in by following the README
     # "可选: 让 AI 候选的 'AI' 字样以强调色显示" section manually.
-    if [ -f "${DEFAULTS_SRC}/bangke.custom.yaml" ] && [ ! -f "${RIME_DIR}/bangke.custom.yaml" ]; then
+    if [ -f "${DEFAULTS_SRC}/bangke.custom.yaml" ] && [ ! -f "${BANGKE_DIR}/bangke.custom.yaml" ]; then
         echo "[postinstall] seeding bangke.custom.yaml (no existing one found)" >> "${LOG}"
-        cp "${DEFAULTS_SRC}/bangke.custom.yaml" "${RIME_DIR}/bangke.custom.yaml"
-    elif [ -f "${RIME_DIR}/bangke.custom.yaml" ]; then
+        cp "${DEFAULTS_SRC}/bangke.custom.yaml" "${BANGKE_DIR}/bangke.custom.yaml"
+    elif [ -f "${BANGKE_DIR}/bangke.custom.yaml" ]; then
         echo "[postinstall] keeping user's existing bangke.custom.yaml" >> "${LOG}"
     fi
 
     # Extended dictionary (rime-ice core shards). These are
     # data files we ship and own, so hard-overwrite: copy the dict definition
-    # and its cn_dicts/ shards into the user Rime dir. luna_pinyin.custom.yaml
+    # and its cn_dicts/ shards into the user dir. luna_pinyin.custom.yaml
     # points translator/dictionary at luna_pinyin.extended, so --build below
     # compiles and mounts it automatically.
     if [ -d "${DEFAULTS_SRC}/dicts" ]; then
         echo "[postinstall] installing extended dictionary (luna_pinyin.extended + cn_dicts)" >> "${LOG}"
-        cp -R "${DEFAULTS_SRC}/dicts/." "${RIME_DIR}/"
+        cp -R "${DEFAULTS_SRC}/dicts/." "${BANGKE_DIR}/"
     else
         echo "[postinstall] no dicts/ in defaults, skipping extended dictionary" >> "${LOG}"
     fi
@@ -88,11 +88,11 @@ else
 fi
 
 # 雾凇拼音(rime-ice)全拼方案: schema + melt_eng/radical_pinyin 词库 + lua
-# + en_dicts + opencc(emoji) 硬覆盖铺到用户 Rime 目录。cn_dicts 已由上方
+# + en_dicts + opencc(emoji) 硬覆盖铺到用户目录。cn_dicts 已由上方
 # dicts/ 一并铺好(同一套 rime-ice 核心分片), 这里不再重复处理。
 if [ -d "${RIME_ICE_SRC}" ]; then
     echo "[postinstall] installing rime-ice (雾凇拼音) scheme" >> "${LOG}"
-    cp -R "${RIME_ICE_SRC}/." "${RIME_DIR}/"
+    cp -R "${RIME_ICE_SRC}/." "${BANGKE_DIR}/"
 else
     echo "[postinstall] no ${RIME_ICE_SRC}, skipping 雾凇拼音 scheme" >> "${LOG}"
 fi
@@ -118,17 +118,22 @@ else
     echo "[postinstall] WARN: no model at ${MODEL_SRC}, skipping" >> "${LOG}"
 fi
 
-echo "[postinstall] chowning ${RIME_DIR} to ${LOGIN_USER}" >> "${LOG}"
-/usr/sbin/chown -R "${LOGIN_USER}:staff" "${RIME_DIR}"
+echo "[postinstall] chowning ${BANGKE_DIR} to ${LOGIN_USER}" >> "${LOG}"
+/usr/sbin/chown -R "${LOGIN_USER}:staff" "${BANGKE_DIR}"
 
-/usr/bin/sudo -u "${LOGIN_USER}" /usr/bin/killall "${APP_NAME%.app}" >/dev/null 2>&1 || true
+# 替换 bundle 会触发系统重启输入法; 它启动时发现 build/ 被清也会自行全量
+# 部署, 与下面的 --build 抢同一个用户目录。先禁用输入源把输入法压下去,
+# 部署完再启用+选中, 保证只有一个部署执行者。
+/usr/bin/sudo -u "${LOGIN_USER}" "${APP_BIN}" --disable-input-source || true
+/usr/bin/killall "${APP_NAME%.app}" >/dev/null 2>&1 || true
 
 "${APP_BIN}" --register-input-source
 
 if [ -z "${RIME_NO_PREBUILD}" ]; then
-    pushd "${SHARED}" >/dev/null
-    "${APP_BIN}" --build || echo "[postinstall] WARN: --build returned non-zero" >> "${LOG}"
-    popd >/dev/null
+    # 以登录用户跑: user_data_dir 按 uid 解析, root 跑会落到 /var/root,
+    # 而且部署产物会以 root 属主落在用户目录里。
+    /usr/bin/sudo -u "${LOGIN_USER}" "${APP_BIN}" --build \
+        || echo "[postinstall] WARN: --build returned non-zero" >> "${LOG}"
 fi
 
 /usr/bin/sudo -u "${LOGIN_USER}" "${APP_BIN}" --enable-input-source || true

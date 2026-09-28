@@ -28,7 +28,9 @@
 #   MODEL_SRC         CTranslate2 模型源目录, 内部应直接含 model.bin / config.json 等
 #                     默认查找顺序:
 #                       1) local/cache/predict_models/zh-base-ct2-int8/
-#                       2) ~/Library/Rime/predict_models/zh-base-ct2-int8/
+#                       2) ~/Library/BangkePinyin/predict_models/zh-base-ct2-int8/
+#                       3) ~/Library/Rime/predict_models/zh-base-ct2-int8/ (旧版
+#                          download_model.sh 的落点, 存量开发机兜底, 会提示迁移)
 #                     都没有就报错; 不会自动联网下载
 #   SKIP_PULL=1       跳过 git pull + submodule update (本地有未提交改动时用)
 #   SKIP_BUILD=1      跳过 make librime + make release, 直接拿 lib/ 下
@@ -99,12 +101,21 @@ if [ "${IS_RELEASE_BUILD}" != "1" ]; then
 fi
 
 # ---- 找模型 -------------------------------------------------------------
+# 查找顺序: 项目缓存 → Bangke 私有目录(规范位置) → ~/Library/Rime(旧版
+# download_model.sh 的落点, 仅为存量开发机兜底, 不影响装机的目录隔离).
 if [ -z "${MODEL_SRC:-}" ]; then
     for cand in \
         "${ASSETS_DIR}/cache/predict_models/zh-base-ct2-int8" \
+        "${HOME}/Library/BangkePinyin/predict_models/zh-base-ct2-int8" \
         "${HOME}/Library/Rime/predict_models/zh-base-ct2-int8"; do
         if [ -f "${cand}/model.bin" ]; then
             MODEL_SRC="${cand}"
+            case "${cand}" in
+                */Library/Rime/*)
+                    warn "模型在旧位置 ${cand}, 建议迁到私有目录:
+    mkdir -p ~/Library/BangkePinyin && mv ~/Library/Rime/predict_models ~/Library/BangkePinyin/"
+                    ;;
+            esac
             break
         fi
     done
@@ -272,7 +283,7 @@ cp "${DEFAULTS_DIR}/rime_ice.custom.yaml"    "${INJECT_DEFAULTS}/"
 cp "${DEFAULTS_DIR}/bangke.custom.yaml"    "${INJECT_DEFAULTS}/"
 # 扩展词库(雾凇 rime-ice 核心全拼分片)随包分发, postinstall 会把
 # dicts/ 下的 luna_pinyin.extended.dict.yaml 与 cn_dicts/*.dict.yaml 一并
-# 铺到用户 ~/Library/Rime/, 配合 luna_pinyin.custom.yaml 里的
+# 铺到用户 ~/Library/BangkePinyin/, 配合 luna_pinyin.custom.yaml 里的
 # translator/dictionary: luna_pinyin.extended 自动挂载, 大幅扩充词汇量.
 if [ -d "${DEFAULTS_DIR}/dicts" ]; then
     cp -R "${DEFAULTS_DIR}/dicts" "${INJECT_DEFAULTS}/dicts"
@@ -283,7 +294,7 @@ else
 fi
 # 雾凇拼音(rime-ice)全拼方案: schema + 依赖词库(melt_eng/radical_pinyin)
 # + lua 脚本 + en_dicts + opencc(emoji) 一并随包分发, postinstall 铺到
-# ~/Library/Rime/, 用户 F4 即可切到 rime_ice。cn_dicts 已随上方 dicts/ 分发。
+# ~/Library/BangkePinyin/, 用户 F4 即可切到 rime_ice。cn_dicts 已随上方 dicts/ 分发。
 if [ -d "${RIME_ICE_DIR}" ]; then
     cp -R "${RIME_ICE_DIR}" "${INJECT_RIME_ICE}"
     ok "已注入雾凇拼音 rime-ice ($(du -sh "${INJECT_RIME_ICE}" | awk '{print $1}'))"
@@ -329,6 +340,9 @@ for hook in preinstall postinstall; do
     chmod +x "${pkg_staging}/${hook}"
 done
 
+# pkgbuild 会往 stderr 吐几行 `write: Permission denied`，是它自己的噪音，不是
+# 打包失败：空目录上同样复现、退出码 0、payload 一条不少（可 `pkgutil
+# --payload-files` 核对）。别照着这几行去查仓库文件权限。
 pkgbuild \
     --info "${PKG_INFO}" \
     --root "${PROJECT_ROOT}/${DERIVED_DATA_PATH}/Build/Products/Release" \

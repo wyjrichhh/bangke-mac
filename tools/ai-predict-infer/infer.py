@@ -17,7 +17,7 @@ from pathlib import Path
 import ctranslate2
 from tokenizers import Tokenizer
 
-DEFAULT_MODEL = Path.home() / "Library/Rime/predict_models/zh-base-ct2-int8"
+DEFAULT_MODEL = Path.home() / "Library/BangkePinyin/predict_models/zh-base-ct2-int8"
 
 # 与 ct2_backend.cc Detokenize 的跳过集合一致
 _DETOKENIZE_SKIP = {

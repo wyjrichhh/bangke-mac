@@ -1,7 +1,10 @@
 #!/bin/bash
 #
-# preinstall: 在 @APP_NAME@ 写入前, 安全清理用户 Rime 目录里
+# preinstall: 在 @APP_NAME@ 写入前, 安全清理 Bangke 私有用户目录里
 # 与本分发版冲突的配置, 但保留用户的标识/词库/学习记忆.
+#
+# 只碰 ~/Library/BangkePinyin, 绝不动 ~/Library/Rime —— 那是鼠须管等
+# Rime 发行版的地盘, 动它等于污染别人家的配置.
 #
 # 保留:
 #   installation.yaml   用户的 Rime 安装 ID
@@ -12,7 +15,7 @@
 # 重置:
 #   build/               (旧的 deploy 产物, 让本次重新生成)
 #
-# 整个用户 Rime 目录会先被完整复制到 ~/Library/Rime.backup-<ts>/ 兜底.
+# 整个用户目录会先被完整复制到 ~/Library/BangkePinyin.backup-<ts>/ 兜底.
 #
 
 set -e
@@ -21,7 +24,7 @@ LOGIN_USER=$(/usr/bin/stat -f%Su /dev/console)
 LOGIN_HOME=$(/usr/bin/dscl . -read "/Users/${LOGIN_USER}" NFSHomeDirectory 2>/dev/null | awk '{print $2}')
 [ -n "${LOGIN_HOME}" ] || LOGIN_HOME="/Users/${LOGIN_USER}"
 
-RIME_DIR="${LOGIN_HOME}/Library/Rime"
+BANGKE_DIR="${LOGIN_HOME}/Library/BangkePinyin"
 LOG_DIR="${LOGIN_HOME}/Library/Logs/BangkePinyin"
 mkdir -p "${LOG_DIR}"
 # 安装脚本以 root 跑, 建出来的目录属主会是 root; 而输入法进程以登录用户身份运行,
@@ -31,21 +34,21 @@ LOG="${LOG_DIR}/install.log"
 
 echo "[$(date '+%F %T')] preinstall start, user=${LOGIN_USER} home=${LOGIN_HOME}" >> "${LOG}"
 
-if [ -d "${RIME_DIR}" ]; then
+if [ -d "${BANGKE_DIR}" ]; then
     STAMP=$(date +%Y%m%d-%H%M%S)
-    BACKUP="${LOGIN_HOME}/Library/Rime.backup-${STAMP}"
+    BACKUP="${LOGIN_HOME}/Library/BangkePinyin.backup-${STAMP}"
 
-    echo "[preinstall] backing up ${RIME_DIR} -> ${BACKUP}" >> "${LOG}"
-    /usr/bin/sudo -u "${LOGIN_USER}" /bin/cp -R "${RIME_DIR}" "${BACKUP}"
+    echo "[preinstall] backing up ${BANGKE_DIR} -> ${BACKUP}" >> "${LOG}"
+    /usr/bin/sudo -u "${LOGIN_USER}" /bin/cp -R "${BANGKE_DIR}" "${BACKUP}"
 
     # These files are NOT removed. postinstall merges the shipped engine wiring
     # into them while keeping the values the user set in the settings window, so
     # it needs them to still be here. Deleting them would silently reset
     # menu/page_size, the Shift key bindings and every ai_predict option.
 
-    if [ -d "${RIME_DIR}/build" ]; then
+    if [ -d "${BANGKE_DIR}/build" ]; then
         echo "[preinstall] removing stale build/ (will be regenerated)" >> "${LOG}"
-        rm -rf "${RIME_DIR}/build"
+        rm -rf "${BANGKE_DIR}/build"
     fi
 fi
 

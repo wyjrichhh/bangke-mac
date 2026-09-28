@@ -10,10 +10,13 @@ import InputMethodKit
 
 @main
 struct BangkeApp {
+  /// 私有用户目录：不能用 Rime 生态共用的 ~/Library/Rime，否则装过鼠须管
+  /// (Squirrel) 的机器上，两家的 default.custom.yaml / user.yaml / 词库会
+  /// 互相合并污染（表现为简繁体错乱等）。
   static let userDir = if let pwuid = getpwuid(getuid()) {
-    URL(fileURLWithFileSystemRepresentation: pwuid.pointee.pw_dir, isDirectory: true, relativeTo: nil).appending(components: "Library", "Rime")
+    URL(fileURLWithFileSystemRepresentation: pwuid.pointee.pw_dir, isDirectory: true, relativeTo: nil).appending(components: "Library", "BangkePinyin")
   } else {
-    try! FileManager.default.url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: false).appendingPathComponent("Rime", isDirectory: true)
+    try! FileManager.default.url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: false).appendingPathComponent("BangkePinyin", isDirectory: true)
   }
   // 运行中的 bundle 路径就是安装位置，不必写死 /Library/Input Methods/<name>.app
   static let appDir = Bundle.main.bundleURL
@@ -30,6 +33,23 @@ struct BangkeApp {
     URL(fileURLWithFileSystemRepresentation: pwuid.pointee.pw_dir, isDirectory: true, relativeTo: nil).appending(components: "Library", "Logs", bundleName)
   } else {
     try! FileManager.default.url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("Logs/\(bundleName)", isDirectory: true)
+  }
+
+  /// librime traits 的单一事实来源，setupRime() 与 --build 共用。目录字段
+  /// 留空时 librime 会退回当前工作目录 —— root 在 SharedSupport 里跑
+  /// --build 就把部署产物写进 app 包自己。app_name 由调用方给定，
+  /// 构建日志靠它区分 (rime.bangke-builder.*)。
+  static func deployTraits(appName: String) -> RimeTraits {
+    var traits = RimeTraits.rimeStructInit()
+    traits.setCString(Bundle.main.sharedSupportPath!, to: \.shared_data_dir)
+    traits.setCString(userDir.fileSystemPath, to: \.user_data_dir)
+    traits.setCString(logDir.fileSystemPath, to: \.log_dir)
+    traits.setCString(Brand.codeName, to: \.distribution_code_name)
+    traits.setCString(Brand.displayName, to: \.distribution_name)
+    traits.setCString(Bundle.main.object(forInfoDictionaryKey: kCFBundleVersionKey as String) as? String ?? "",
+                      to: \.distribution_version)
+    traits.setCString(appName, to: \.app_name)
+    return traits
   }
 
   // swiftlint:disable:next cyclomatic_complexity
@@ -97,11 +117,16 @@ struct BangkeApp {
           return true
         case "--build":
           BangkeApplicationDelegate.showMessage(msgText: NSLocalizedString("deploy_update", comment: ""))
-          var builderTraits = RimeTraits.rimeStructInit()
-          builderTraits.setCString("rime.bangke-builder", to: \.app_name)
+          setenv("RIME_LOG_DIR", BangkeApp.logDir.fileSystemPath, 1)
+          var builderTraits = BangkeApp.deployTraits(appName: "rime.bangke-builder")
           rimeAPI.setup(&builderTraits)
           rimeAPI.deployer_initialize(nil)
           _ = rimeAPI.deploy()
+          // 部署任务只编译 schema 与 default.yaml; 前端自己的 bangke.yaml
+          // 历来由 startRime 里的这句补生成。装包期间输入法不运行(防双部署
+          // 竞态), 若 --build 不做这一步, 新装机器上 build/bangke.yaml 缺失,
+          // 设置页的基础配置打不开、配色方案列表为空。
+          _ = rimeAPI.deploy_config_file("\(Brand.configName).yaml", "config_version")
           return true
         case "--sync":
           DistributedNotificationCenter.default().postNotificationName(.init("BangkeSyncNotification"), object: nil, userInfo: nil, deliverImmediately: true)
@@ -191,7 +216,7 @@ Perform actions:
   --quit                     quit all \(Brand.productName) process
   --reload                   deploy
   --sync                     sync user data
-  --build                    build all schemas in current directory
+  --build                    build all schemas into the current user's BangkePinyin dir
   --install-custom-config <factory> <destination>
                              write a shipped patch file, keeping user values
   --ascii                    turn on ASCII mode

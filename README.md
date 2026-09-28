@@ -42,10 +42,15 @@ Rime 原本是「查词库」式输入法：输入拼音，按词频列出候选
 ## 安装
 
 ```bash
-sudo make install
+make install
 ```
 
 安装到 `/Library/Input Methods/BangkePinyin.app`。**注销并重新登录** macOS 让系统重新加载输入法。
+
+> 不要加 `sudo`：`install-release` 依赖 `release`，加 sudo 会把整个构建也以 root 跑完，
+> 在仓库里留下一批 root 属主的产物，之后普通用户再跑构建就会 Permission denied。
+> 需要提权的那一步（`permission-check` 把 `/Library/Input Methods` chown 给当前用户）
+> Makefile 自己会去要密码。
 
 > 首次安装后到「系统设置 → 键盘 → 输入法」里添加「蚌壳拼音」。
 
@@ -101,26 +106,28 @@ make         # 编译 BangkePinyin.app
 ( cd librime/plugins/ai-predict && ./scripts/download_model.sh )
 ```
 
-模型（约 300MB）会下载并解压到 `~/Library/Rime/predict_models/zh-base-ct2-int8/`。
+模型（约 300MB）会下载并解压到 `~/Library/BangkePinyin/predict_models/zh-base-ct2-int8/`。
 
 ### 5. 创建用户配置
 
-`*.custom.yaml` 是 Rime 的 patch 文件，**默认不存在**，需要在 `~/Library/Rime/` 下手动创建。
+`*.custom.yaml` 是 Rime 的 patch 文件，**默认不存在**，需要在 `~/Library/BangkePinyin/` 下手动创建。
+
+> 蚌壳拼音使用私有用户目录 `~/Library/BangkePinyin/`，与鼠须管等 Rime 发行版的 `~/Library/Rime/` 完全隔离——装过鼠须管的机器上双方配置互不影响。
 
 > ⚠️ 当前模型 `zh-base-ct2-int8` **仅针对简体中文训练**，因此下面把字形开关默认置为简体。若你的方案以繁体为主，AI 候选质量会明显下降。
 
 ```bash
 # default.custom.yaml：把 ai_predict 模块追加到 default.yaml 的 modules 列表
-cat > ~/Library/Rime/default.custom.yaml <<'EOF'
+cat > ~/Library/BangkePinyin/default.custom.yaml <<'EOF'
 patch:
   schema_list:
-    - schema: luna_pinyin
+    - schema: rime_ice
   menu/page_size: 5
   'modules/@next': ai_predict
 EOF
 
 # luna_pinyin.custom.yaml：把 ai_predict_translator/filter 接入 schema 引擎
-cat > ~/Library/Rime/luna_pinyin.custom.yaml <<'EOF'
+cat > ~/Library/BangkePinyin/luna_pinyin.custom.yaml <<'EOF'
 patch:
   # 朙月拼音 switches 默认顺序为 @0 ascii_mode @1 full_shape @2 simplification；
   # states: [ 漢字, 汉字 ]，reset: 1 表示默认「汉字」(简体)，与模型语种一致
@@ -156,7 +163,7 @@ EOF
 前端实现了 [rime/squirrel#1124](https://github.com/rime/squirrel/issues/1124) 提案的「语义色 + 保留 property key 协议」。AI 候选的注释由插件通过 `_comment_highlight` 告知前端，前端按配色方案的 `accent_text_color` 上色。**默认未配此色 → 与普通注释同色**，不影响功能。
 
 ```bash
-cat > ~/Library/Rime/bangke.custom.yaml <<'EOF'
+cat > ~/Library/BangkePinyin/bangke.custom.yaml <<'EOF'
 patch:
   preset_color_schemes/native/accent_text_color: 0xff8c5a   # 橙色, BGR
   # 用了其他配色方案时把 native 改成对应方案名

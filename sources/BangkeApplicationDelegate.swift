@@ -136,6 +136,13 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
     NSApp.setActivationPolicy(.accessory)
   }
 
+  /// 检查更新入口。updater 在无 SUFeedURL 时从未启动，对它调
+  /// checkForUpdates 只会告警，所以先过 updatesEnabled 门控。
+  func checkForUpdates() {
+    guard Self.updatesEnabled else { return }
+    updateController.updater.checkForUpdates()
+  }
+
   /// 进程常驻跨天时，昨天留下的日志不必等到下次重启或部署才归档。
   private func scheduleLogHousekeeping() {
     let midnight = Calendar.current.nextDate(after: Date(), matching: DateComponents(hour: 0, minute: 0), matchingPolicy: .nextTime)
@@ -186,14 +193,7 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
     // swiftlint:enable identifier_name
     rimeAPI.set_notification_handler(notification_handler, context_object)
 
-    var bangkeTraits = RimeTraits.rimeStructInit()
-    bangkeTraits.setCString(Bundle.main.sharedSupportPath!, to: \.shared_data_dir)
-    bangkeTraits.setCString(BangkeApp.userDir.fileSystemPath, to: \.user_data_dir)
-    bangkeTraits.setCString(BangkeApp.logDir.fileSystemPath, to: \.log_dir)
-    bangkeTraits.setCString(Brand.codeName, to: \.distribution_code_name)
-    bangkeTraits.setCString(Brand.displayName, to: \.distribution_name)
-    bangkeTraits.setCString(Bundle.main.object(forInfoDictionaryKey: kCFBundleVersionKey as String) as! String, to: \.distribution_version)
-    bangkeTraits.setCString(Brand.rimeAppName, to: \.app_name)
+    var bangkeTraits = BangkeApp.deployTraits(appName: Brand.rimeAppName)
     rimeAPI.setup(&bangkeTraits)
   }
 
