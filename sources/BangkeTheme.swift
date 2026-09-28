@@ -11,6 +11,7 @@ final class BangkeTheme {
   static let offsetHeight: CGFloat = 5
   static let defaultFontSize: CGFloat = NSFont.systemFontSize
   static let showStatusDuration: Double = 1.2
+  static let translucencyAlpha: CGFloat = 0.6
   static let defaultFont = NSFont.userFont(ofSize: defaultFontSize)!
 
   enum StatusMessageType: String {
@@ -64,6 +65,14 @@ final class BangkeTheme {
 
   private(set) var translucency = false
   private(set) var mutualExclusive = false
+
+  /// Panel fill. Frosted mode draws the colour scheme's back colour at a fixed
+  /// translucency rather than as authored: the bundled schemes are effectively
+  /// opaque, so painting them unchanged buries the blur layer the panel puts
+  /// behind this one and the switch does nothing.
+  var panelBackgroundColor: NSColor {
+    translucency ? backgroundColor.withAlphaComponent(Self.translucencyAlpha) : backgroundColor
+  }
   private(set) var linear = false
   private(set) var vertical = false
   private(set) var inlinePreedit = false

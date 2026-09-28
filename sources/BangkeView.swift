@@ -71,8 +71,10 @@ final class BangkeView: NSView {
   override var isFlipped: Bool {
     true
   }
+  /// Settings-preview-only override; the real candidate panel always follows NSApp.
+  var isDarkOverride: Bool?
   var isDark: Bool {
-    NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+    isDarkOverride ?? (NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua)
   }
 
   func convert(range: NSRange) -> NSTextRange? {
@@ -142,14 +144,20 @@ final class BangkeView: NSView {
     var preeditRect = NSRect.zero
     if preeditRange.length > 0, let preeditTextRange = convert(range: preeditRange) {
       preeditRect = contentRect(range: preeditTextRange)
-      preeditRect.size.width = backgroundRect.size.width
       preeditRect.size.height += theme.edgeInset.height + theme.preeditLinespace / 2 + theme.hilitedCornerRadius / 2
-      preeditRect.origin = backgroundRect.origin
-      if candidateRanges.count == 0 {
-        preeditRect.size.height += theme.edgeInset.height - theme.preeditLinespace / 2 - theme.hilitedCornerRadius / 2
+      if theme.linear {
+        // 单行模式: 编码与候选同行, 只占行内一段, 不整行拉伸宽度、
+        // 更不能从候选区域整行扣高 —— 扣掉后 outerBox 高度 ≤ 0, expand()
+        // 会把高亮顶点全夹到同一水平线, 高亮塌成零高度。
+      } else {
+        preeditRect.size.width = backgroundRect.size.width
+        preeditRect.origin = backgroundRect.origin
+        if candidateRanges.count == 0 {
+          preeditRect.size.height += theme.edgeInset.height - theme.preeditLinespace / 2 - theme.hilitedCornerRadius / 2
+        }
+        containingRect.size.height -= preeditRect.size.height
+        containingRect.origin.y += preeditRect.size.height
       }
-      containingRect.size.height -= preeditRect.size.height
-      containingRect.origin.y += preeditRect.size.height
       if theme.preeditBackgroundColor != nil {
         preeditPath = drawSmoothLines(rectVertex(of: preeditRect), straightCorner: Set(), alpha: 0, beta: 0)
       }
@@ -226,7 +234,7 @@ final class BangkeView: NSView {
       }
     }
     let panelLayer = shapeFromPath(path: backPath)
-    panelLayer.fillColor = theme.backgroundColor.cgColor
+    panelLayer.fillColor = theme.panelBackgroundColor.cgColor
     let panelLayerMask = shapeFromPath(path: backgroundPath)
     panelLayer.mask = panelLayerMask
     self.layer?.addSublayer(panelLayer)
@@ -263,19 +271,7 @@ final class BangkeView: NSView {
       let layer = shapeFromPath(path: path)
       layer.fillColor = color.cgColor
       if theme.shadowSize > 0 {
-        let shadowLayer = CAShapeLayer()
-        shadowLayer.shadowColor = NSColor.black.cgColor
-        shadowLayer.shadowOffset = NSSize(width: theme.shadowSize/2, height: (theme.vertical ? -1 : 1) * theme.shadowSize/2)
-        shadowLayer.shadowPath = highlightedPath
-        shadowLayer.shadowRadius = theme.shadowSize
-        shadowLayer.shadowOpacity = 0.2
-        let outerPath = backgroundPath?.mutableCopy()
-        outerPath?.addPath(path)
-        let shadowLayerMask = shapeFromPath(path: outerPath)
-        shadowLayer.mask = shadowLayerMask
-        layer.strokeColor = NSColor.black.withAlphaComponent(0.15).cgColor
-        layer.lineWidth = 0.5
-        layer.addSublayer(shadowLayer)
+        applyHighlightShadow(to: layer, highlightedPath: path, theme: theme)
       }
       panelLayer.addSublayer(layer)
     }
@@ -632,6 +628,8 @@ private extension BangkeView {
     currentContainingRect.origin.y -= extraExpansion
 
     let halfLinespace = theme.linespace / 2
+    // 单行模式下编码与候选同行, 候选可用高度不含编码行(见 draw() 的说明)。
+    let preeditCarve = theme.linear ? 0 : preeditRect.size.height
     var innerBox = backgroundRect
     innerBox.size.width -= (theme.edgeInset.width + 1) * 2 - 2 * extraExpansion
     innerBox.origin.x += theme.edgeInset.width + 1 - extraExpansion
@@ -641,17 +639,17 @@ private extension BangkeView {
       innerBox.origin.y += theme.edgeInset.height + 1
       innerBox.size.height -= (theme.edgeInset.height + 1) * 2
     } else {
-      innerBox.origin.y += preeditRect.size.height + theme.preeditLinespace / 2 + theme.hilitedCornerRadius / 2 + 1
-      innerBox.size.height -= theme.edgeInset.height + preeditRect.size.height + theme.preeditLinespace / 2 + theme.hilitedCornerRadius / 2 + 2
+      innerBox.origin.y += preeditCarve + theme.preeditLinespace / 2 + theme.hilitedCornerRadius / 2 + 1
+      innerBox.size.height -= theme.edgeInset.height + preeditCarve + theme.preeditLinespace / 2 + theme.hilitedCornerRadius / 2 + 2
     }
     innerBox.size.height -= theme.linespace
     innerBox.origin.y += halfLinespace
 
     var outerBox = backgroundRect
-    outerBox.size.height -= preeditRect.size.height + max(0, theme.hilitedCornerRadius + theme.borderLineWidth) - 2 * extraExpansion
+    outerBox.size.height -= preeditCarve + max(0, theme.hilitedCornerRadius + theme.borderLineWidth) - 2 * extraExpansion
     outerBox.size.width -= max(0, theme.hilitedCornerRadius + theme.borderLineWidth)  - 2 * extraExpansion
     outerBox.origin.x += max(0.0, theme.hilitedCornerRadius + theme.borderLineWidth) / 2.0 - extraExpansion
-    outerBox.origin.y += preeditRect.size.height + max(0, theme.hilitedCornerRadius + theme.borderLineWidth) / 2 - extraExpansion
+    outerBox.origin.y += preeditCarve + max(0, theme.hilitedCornerRadius + theme.borderLineWidth) / 2 - extraExpansion
 
     let effectiveRadius = max(0, theme.hilitedCornerRadius + 2 * extraExpansion / theme.hilitedCornerRadius * max(0, theme.cornerRadius - theme.hilitedCornerRadius))
 
@@ -705,6 +703,21 @@ private extension BangkeView {
     return resultingPath
   }
 
+  /// 高亮候选投在面板上的一层柔影。
+  ///
+  /// 影子必须挂在高亮填充层自己身上: Core Animation 只给「有内容」的图层投
+  /// 影, 一个只设了 shadowPath、没有任何路径或填充的图层整个不参与合成, 影子
+  /// 无处投起 —— 离屏渲染实测为空白。挂在填充层上影子就画在本层内容之下、
+  /// 面板底色之上, 正是想要的层次。
+  func applyHighlightShadow(to layer: CALayer, highlightedPath: CGPath, theme: BangkeTheme) {
+    layer.shadowColor = NSColor.black.cgColor
+    layer.shadowOffset = NSSize(width: theme.shadowSize / 2,
+                                height: (theme.vertical ? -1 : 1) * theme.shadowSize / 2)
+    layer.shadowPath = highlightedPath
+    layer.shadowRadius = theme.shadowSize
+    layer.shadowOpacity = 0.2
+  }
+
   func carveInset(rect: NSRect) -> NSRect {
     var newRect = rect
     newRect.size.height -= (currentTheme.hilitedCornerRadius + currentTheme.borderWidth) * 2
@@ -740,14 +753,14 @@ private extension BangkeView {
     if canPageDown {
       var downTransform = CGAffineTransform(translationX: 0.5 * theme.pagingOffset, y: 2 * height / 3 + preeditHeight)
       let downLayer = shapeFromPath(path: trianglePath.copy(using: &downTransform))
-      downLayer.fillColor = theme.backgroundColor.cgColor
+      downLayer.fillColor = theme.panelBackgroundColor.cgColor
       downPath = trianglePath.copy(using: &downTransform)
       layer.addSublayer(downLayer)
     }
     if canPageUp {
       var upTransform = CGAffineTransform(rotationAngle: .pi).translatedBy(x: -0.5 * theme.pagingOffset, y: -height / 3 - preeditHeight)
       let upLayer = shapeFromPath(path: trianglePath.copy(using: &upTransform))
-      upLayer.fillColor = theme.backgroundColor.cgColor
+      upLayer.fillColor = theme.panelBackgroundColor.cgColor
       upPath = trianglePath.copy(using: &upTransform)
       layer.addSublayer(upLayer)
     }
