@@ -43,6 +43,17 @@ SOURCES=(
 OUT_DIR="${REPO_ROOT}/build/preview-test"   # build/ 已在 .gitignore 里
 mkdir -p "${OUT_DIR}"
 
+# CLI 二进制的 Bundle.main 需要伪装成 app: BangkePreviewTheme 从
+# SharedSupport/<config>.yaml 读基础配置, Brand.configName 从 Info.plist 读。
+# Bundle.main 对裸可执行文件的 bundleURL 就是其所在目录。
+cp -R "${REPO_ROOT}/data/." "${OUT_DIR}/SharedSupport/" 2>/dev/null || {
+    mkdir -p "${OUT_DIR}/SharedSupport" && cp -R "${REPO_ROOT}/data/." "${OUT_DIR}/SharedSupport/"
+}
+printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
+    '<plist version="1.0"><dict>' \
+    '<key>RimeConfigName</key><string>bangke</string>' \
+    '</dict></plist>' > "${OUT_DIR}/Info.plist"
+
 # librime 走 glog, 部署时会刷一屏 INFO; 只留 warning 及以上.
 export GLOG_minloglevel=2
 

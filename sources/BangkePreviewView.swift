@@ -61,9 +61,13 @@ final class BangkePreviewCanvas: NSView {
   /// Comfortably wider than the window, so sample candidates stay on one line.
   private static let measureWidth: CGFloat = 800
 
-  private let content = NSView(frame: .zero)
-  private let bangkeView = BangkeView(frame: .zero)
+  private var content = NSView(frame: .zero)
+  private var bangkeView = BangkeView(frame: .zero)
   private var theme: BangkeTheme?
+  /// 横竖翻转时子树整体重建: 竖排的 -90° 旋转是 content 上的粘性状态,
+  /// 复用旧子树切回横排时, 图层变换与位图会残留上一形态, 屏幕上呈
+  /// 90° 旋转 —— 换一套新视图从零构建最干净。
+  private var isVerticalLayout = false
 
   /// Origin at the top left, so the panel anchors to the corner of whatever
   /// frame SwiftUI hands us instead of floating in the bottom-left with dead
@@ -72,26 +76,52 @@ final class BangkePreviewCanvas: NSView {
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
-    addSubview(content)
-    content.addSubview(bangkeView)
-    content.addSubview(bangkeView.textView)
+    installSubtree()
   }
 
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
 
+  private func installSubtree() {
+    content.removeFromSuperview()
+    content = NSView(frame: .zero)
+    bangkeView = BangkeView(frame: .zero)
+    addSubview(content)
+    content.addSubview(bangkeView)
+    content.addSubview(bangkeView.textView)
+  }
+
+  /// When set, the preview renders this appearance instead of the app's own —
+  /// the settings page shows a forced-light and a forced-dark panel side by side.
+  var forcedDark: Bool?
+
+  /// How many sample candidates to draw. Follows the real `menu/page_size` so
+  /// the stacked preview shows as many rows as the actual panel would.
+  /// Harness callers that go through `apply(light:dark:)` keep the default.
+  private var sampleCount = 5
+
   func apply(settings: BangkeSettings) {
+    sampleCount = max(1, settings.behavior.pageSize)
     guard let themes = BangkePreviewTheme.load(settings) else { return }
     apply(light: themes.light, dark: themes.dark)
   }
 
   func apply(light: BangkeTheme, dark: BangkeTheme) {
+    // text_orientation 全局唯一, 亮暗两套主题的 vertical 恒同值, 取一套判断即可。
+    if light.vertical != isVerticalLayout {
+      installSubtree()
+      isVerticalLayout = light.vertical
+    }
+    bangkeView.isDarkOverride = forcedDark
     bangkeView.lightTheme = light
     bangkeView.darkTheme = dark
 
     let theme = bangkeView.currentTheme
     self.theme = theme
+    // 真实面板把 style/alpha 应用在窗口上(BangkePanel.show: alphaValue);
+    // 预览没有窗口, 等价地下沉到面板容器, 背板颜色得以透出来。
+    content.alphaValue = theme.alpha
     bangkeView.textView.textContainerInset = theme.edgeInset
     bangkeView.textView.textContentStorage?.attributedString = attributedText(theme: theme)
 
@@ -117,8 +147,11 @@ final class BangkePreviewCanvas: NSView {
     let text = NSMutableAttributedString()
     let vertical = theme.vertical
     let linear = theme.linear
-    let rows = vertical ? sampleCandidates.count : (linear ? 1 : 2)
-    let perRow = max(1, Int(ceil(Double(sampleCandidates.count) / Double(rows))))
+    // 样例数跟随每页候选数(循环取词), 堆叠时行数才和真实面板一致;
+    // 竖排面板是单列从上往下、天然很高, 只取前两个控制高度。
+    let count = vertical ? min(2, sampleCount) : sampleCount
+    let candidates = (0..<count).map { sampleCandidates[$0 % sampleCandidates.count] }
+    let comments = (0..<count).map { sampleComments[$0 % sampleComments.count] }
 
     // Inline preedit keeps the pinyin in the client's marked text, and
     // BangkeInputController duly passes the panel an empty preedit
@@ -134,16 +167,15 @@ final class BangkePreviewCanvas: NSView {
     }
 
     lineRanges = []
-    for (index, candidate) in sampleCandidates.enumerated() {
+    for (index, candidate) in candidates.enumerated() {
       let highlighted = index == 0
       let attrs = highlighted ? theme.highlightedAttrs : theme.attrs
       let labelAttrs = highlighted ? theme.labelHighlightedAttrs : theme.labelAttrs
       let commentAttrs = highlighted ? theme.commentHighlightedAttrs : theme.commentAttrs
 
-      // A new row starts after the preedit, then every `perRow` candidates.
-      // With no preedit the first candidate must not be preceded by a break.
-      let startsRow = index == 0 || (!linear && index % perRow == 0)
-      let separator = (index == 0 && text.length == 0) ? "" : (startsRow ? "\n" : "  ")
+      // Same separator policy as BangkePanel: stacked (and vertical) put every
+      // candidate on its own line; linear joins them with spaces.
+      let separator = (index == 0 && text.length == 0) ? "" : (linear ? "  " : "\n")
       text.append(NSAttributedString(string: separator, attributes: attrs))
 
       let line = NSMutableAttributedString(string: theme.candidateFormat, attributes: labelAttrs)
@@ -157,7 +189,7 @@ final class BangkePreviewCanvas: NSView {
                                             range: NSRange(location: 0, length: line.length))
       line.mutableString.replaceOccurrences(of: "[candidate]", with: candidate,
                                             range: NSRange(location: 0, length: line.length))
-      line.mutableString.replaceOccurrences(of: "[comment]", with: sampleComments[index],
+      line.mutableString.replaceOccurrences(of: "[comment]", with: comments[index],
                                             range: NSRange(location: 0, length: line.length))
       line.addAttribute(.paragraphStyle, value: theme.paragraphStyle,
                         range: NSRange(location: 0, length: line.length))
@@ -172,6 +204,22 @@ final class BangkePreviewCanvas: NSView {
     super.layout()
     guard let theme = theme else { return }
     let panel = panelSize(theme: theme)
+
+    // 横排面板可以很宽、竖排面板可以很高(单列从上往下, 500pt 上下)。当
+    // SwiftUI 给的 frame 装不下完整面板时, 把 bounds 放大到超过 frame,
+    // 借 bounds/frame 错位把整体等比缩小 —— 完整可见优先于原始尺寸。
+    let full = CGSize(width: panel.width + Self.margin * 2, height: panel.height + Self.margin * 2)
+    if abs(bounds.width - full.width) > 0.5 || abs(bounds.height - full.height) > 0.5 {
+      bounds = NSRect(origin: .zero, size: full)
+    }
+
+    // 旋转参与 frame/bounds 的坐标映射。竖排切回横排时若带着 -90° 的旧
+    // 角度直接赋新 frame/bounds, 视图属性虽然收敛, 图层变换却停在旧角度,
+    // 屏幕上呈 90° 旋转 —— 先把旋转归零再赋几何。
+    if content.boundsRotation != 0 {
+      content.boundsRotation = 0
+      content.setBoundsOrigin(.zero)
+    }
     content.frame = NSRect(x: Self.margin, y: Self.margin, width: panel.width, height: panel.height)
     content.bounds = NSRect(origin: .zero, size: panel)
 
@@ -179,9 +227,6 @@ final class BangkePreviewCanvas: NSView {
     if theme.vertical {
       content.boundsRotation = -90
       content.setBoundsOrigin(NSPoint(x: 0, y: panel.width))
-    } else {
-      content.boundsRotation = 0
-      content.setBoundsOrigin(.zero)
     }
 
     bangkeView.textView.boundsRotation = 0
@@ -219,20 +264,45 @@ final class BangkePreviewCanvas: NSView {
 
 struct BangkePreviewRepresentable: NSViewRepresentable {
   let settings: BangkeSettings
+  var dark: Bool?
+  /// Reports the freshly measured panel size after each apply. The hosting
+  /// view does not reliably re-query `sizeThatFits` when an NSViewRepresentable
+  /// invalidates its intrinsic content mid-update, so the measured size has to
+  /// travel back through SwiftUI state to drive the next layout pass.
+  var onPanelSize: ((CGSize) -> Void)?
 
   func makeNSView(context: Context) -> BangkePreviewCanvas {
     let view = BangkePreviewCanvas(frame: .zero)
+    view.forcedDark = dark
     view.apply(settings: settings)
+    reportSize(of: view)
     return view
   }
 
   func updateNSView(_ nsView: BangkePreviewCanvas, context: Context) {
+    nsView.forcedDark = dark
     nsView.apply(settings: settings)
+    reportSize(of: nsView)
+  }
+
+  private func reportSize(of view: BangkePreviewCanvas) {
+    let size = view.intrinsicContentSize
+    // Async: this runs inside a view update; setting state synchronously is
+    // not allowed. A same-value report is a no-op, so the loop converges.
+    DispatchQueue.main.async { onPanelSize?(size) }
   }
 
   /// Without this SwiftUI stretches the canvas to fill the row, and the panel
-  /// ends up as a small box in a mostly empty strip.
+  /// ends up as a small box in a mostly empty strip. Proposals smaller than
+  /// the panel (a tall vertical panel under a capped strip height) are answered
+  /// with an aspect-fitting size instead — the canvas then scales to match.
   func sizeThatFits(_ proposal: ProposedViewSize, nsView: BangkePreviewCanvas, context: Context) -> CGSize? {
-    nsView.intrinsicContentSize
+    let size = nsView.intrinsicContentSize
+    guard size.width > 0, size.height > 0 else { return size }
+    let width = proposal.width ?? size.width
+    let height = proposal.height ?? size.height
+    guard width > 0, height > 0 else { return size }
+    let scale = min(1, width / size.width, height / size.height)
+    return CGSize(width: size.width * scale, height: size.height * scale)
   }
 }
