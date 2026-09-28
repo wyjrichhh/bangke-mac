@@ -1,6 +1,7 @@
 patch:
+  # 雾凇拼音为默认首选方案, 朙月拼音保留为备选
   schema_list:
-    - schema: luna_pinyin
     - schema: rime_ice
+    - schema: luna_pinyin
   menu/page_size: 5
   'modules/@next': ai_predict
