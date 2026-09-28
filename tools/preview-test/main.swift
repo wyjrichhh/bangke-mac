@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 // Offscreen tests for BangkePreviewCanvas, the candidate-bar preview in the
 // settings window.
@@ -61,10 +62,10 @@ func bangkeView(in view: BangkePreviewCanvas) -> BangkeView? {
 /// this the schema-list assertions race the deploy and pass or fail by timing.
 func waitForSchemas(_ expected: [String], timeout: TimeInterval = 5) -> [String] {
   let deadline = Date().addingTimeInterval(timeout)
-  var seen = BangkeSettings.load().aiSchemas
+  var seen = BangkeSettings.load().aiSchemas.map(\.id)
   while seen != expected, Date() < deadline {
     RunLoop.current.run(until: Date().addingTimeInterval(0.05))
-    seen = BangkeSettings.load().aiSchemas
+    seen = BangkeSettings.load().aiSchemas.map(\.id)
   }
   return seen
 }
@@ -293,7 +294,7 @@ print("13. saving re-checks which schemas are AI-wired")
 do {
   // rime_ice exists at load time, so it is in the snapshot.
   let settings = BangkeSettings.load()
-  check(settings.aiSchemas.contains("rime_ice"), "rime_ice loaded")
+  check(settings.aiSchemas.contains { $0.id == "rime_ice" }, "rime_ice loaded")
 
   // Then it goes away before the save, the way a plum uninstall would. Deleting
   // the files is not enough — get_schema_list() reports the deployed state, so
@@ -317,6 +318,295 @@ do {
   // No restoring: each run wipes and rebuilds the harness user dir from scratch.
   _ = parkedSchema
   _ = parkedCustom
+}
+
+print("14. forcedDark switches which theme the preview draws with")
+do {
+  let yaml = baseYAML("  text_orientation: horizontal")
+  let light = makeTheme(yaml, dark: false)
+  let dark = makeTheme(yaml, dark: true)
+  let view = BangkePreviewCanvas(frame: NSRect(x: 0, y: 0, width: 600, height: 120))
+  view.apply(light: light, dark: dark)
+  guard let bangkeView = bangkeView(in: view) else { exit(1) }
+
+  view.forcedDark = true
+  view.apply(light: light, dark: dark)
+  check(bangkeView.currentTheme === dark, "forced dark picks the dark theme")
+
+  view.forcedDark = false
+  view.apply(light: light, dark: dark)
+  check(bangkeView.currentTheme === light, "forced light picks the light theme")
+
+  view.forcedDark = nil
+  view.apply(light: light, dark: dark)
+  let expectDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+  check(bangkeView.currentTheme === (expectDark ? dark : light),
+        "nil falls back to the app appearance")
+}
+
+print("15. a canvas too small for the panel scales down instead of overflowing")
+do {
+  let view = canvas(baseYAML("  text_orientation: vertical"))
+  let full = view.intrinsicContentSize
+  check(full.height > 120, "vertical panel is genuinely tall", "got \(full)")
+  view.frame = NSRect(x: 0, y: 0, width: 40, height: 160)
+  view.layoutSubtreeIfNeeded()
+  check(abs(view.bounds.width - full.width) < 1 && abs(view.bounds.height - full.height) < 1,
+        "bounds expand beyond the small frame, scaling the panel to fit",
+        "bounds \(view.bounds) vs full \(full)")
+}
+
+print("16. style/alpha applies to the preview panel")
+do {
+  let solid = canvas(baseYAML("  text_orientation: horizontal"))
+  check(abs((solid.subviews.first?.alphaValue ?? 0) - 1) < 0.01, "default is opaque")
+  let faded = canvas(baseYAML("  text_orientation: horizontal\n  alpha: 0.4"))
+  check(abs((faded.subviews.first?.alphaValue ?? 0) - 0.4) < 0.01,
+        "alpha sinks onto the panel container",
+        "got \(String(describing: faded.subviews.first?.alphaValue))")
+}
+
+print("17. flipping text orientation leaves no stale vertical state")
+do {
+  // 竖排的 -90° 旋转是 content 上的粘性状态; 切回横排若复用旧子树,
+  // 图层变换会残留旧角度, 屏幕上呈 90° 旋转。翻转必须重建子树。
+  let view = BangkePreviewCanvas(frame: NSRect(x: 0, y: 0, width: 600, height: 120))
+  let horizYAML = baseYAML("  text_orientation: horizontal")
+  let vertYAML = baseYAML("  text_orientation: vertical")
+
+  view.apply(light: makeTheme(horizYAML, dark: false), dark: makeTheme(horizYAML, dark: true))
+  guard let contentAfterH1 = view.subviews.first,
+        let bangkeAfterH1 = bangkeView(in: view) else { exit(1) }
+
+  view.apply(light: makeTheme(vertYAML, dark: false), dark: makeTheme(vertYAML, dark: true))
+  guard let contentAfterV = view.subviews.first else { exit(1) }
+  check(contentAfterV !== contentAfterH1, "vertical flip rebuilds the subtree")
+  check(contentAfterV.boundsRotation == -90, "vertical content is rotated", "got \(contentAfterV.boundsRotation)")
+
+  view.apply(light: makeTheme(horizYAML, dark: false), dark: makeTheme(horizYAML, dark: true))
+  guard let contentAfterH2 = view.subviews.first,
+        let bangkeAfterH2 = bangkeView(in: view) else { exit(1) }
+  check(contentAfterH2 !== contentAfterV, "flipping back rebuilds the subtree again")
+  check(contentAfterH2.boundsRotation == 0, "rotation starts clean at 0", "got \(contentAfterH2.boundsRotation)")
+  check(bangkeAfterH2 !== bangkeAfterH1, "BangkeView is a fresh instance")
+  check(bangkeAfterH2.textView.layoutOrientation == .horizontal,
+        "text view lays out horizontally")
+  check(bangkeAfterH2.textView.superview === bangkeAfterH2.superview,
+        "fresh text view is re-attached as BangkeView's sibling")
+  check((bangkeAfterH2.textView.textContentStorage?.attributedString?.length ?? 0) > 0,
+        "fresh text view holds the sample text")
+
+  // 同形态下重复 apply 不应重建(颜色、字号等滑杆调节走这条路)。
+  let contentBefore = view.subviews.first
+  view.apply(light: makeTheme(horizYAML, dark: false), dark: makeTheme(horizYAML, dark: true))
+  check(view.subviews.first === contentBefore, "same orientation reuses the subtree")
+}
+
+print("18. mismatched scheme layouts keep both preview panels visible")
+do {
+  // 内置方案已降级为纯配色(布局/排版键由设置页全局值决定), 但手写 yaml
+  // 给方案加键仍然生效。这里注入一个带 linear+inline_preedit 的临时方案
+  // 当浅色, 青天(纯色)当深色、表单设堆叠+显示编码 —— 两块固有形状不同。
+  // 曾经共用浅色块的宽高比, 深色块被压成 3×4pt 的点。
+  let staged = URL(fileURLWithPath: Bundle.main.sharedSupportPath!)
+    .appendingPathComponent("\(Brand.configName).yaml")
+  var yaml = try! String(contentsOf: staged, encoding: .utf8)
+  // 注入到 app_options: 之前, 保持 preset_color_schemes 的 2/4 空格缩进。
+  let injection = """
+    zz_test_linear:
+      name: 临时横排方案
+      back_color: 0xFFFFFF
+      text_color: 0x000000
+      candidate_list_layout: linear
+      inline_preedit: true
+
+  app_options:
+  """
+  yaml = yaml.replacingOccurrences(of: "\napp_options:\n", with: "\n\(injection)\n")
+  try! yaml.write(to: staged, atomically: true, encoding: .utf8)
+
+  let model = BangkeSettingsModel()
+  model.settings.appearance.candidateListLayout = "stacked"
+  model.settings.appearance.inlinePreedit = false
+  model.settings.appearance.colorScheme = "zz_test_linear"
+  model.settings.appearance.colorSchemeDark = "azure"
+
+  let hosting = NSHostingView(rootView: BangkePreferencesView(model: model, onClose: {}))
+  hosting.frame = NSRect(x: 0, y: 0, width: 560, height: 620)
+  let window = NSWindow(contentRect: hosting.bounds, styleMask: [.titled], backing: .buffered, defer: false)
+  window.contentView = hosting
+  NSApp.setActivationPolicy(.regular)
+  NSApp.activate(ignoringOtherApps: true)
+  window.makeKeyAndOrderFront(nil)
+  // onPanelSize 走 DispatchQueue.main.async 回流, 泵到收敛。
+  for _ in 0..<20 { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
+
+  var canvases: [BangkePreviewCanvas] = []
+  var queue: [NSView] = [hosting]
+  while !queue.isEmpty {
+    let v = queue.removeFirst()
+    if let c = v as? BangkePreviewCanvas { canvases.append(c) }
+    queue.append(contentsOf: v.subviews)
+  }
+  check(canvases.count == 2, "both preview canvases are hosted", "got \(canvases.count)")
+
+  for canvas in canvases {
+    let half = canvas.forcedDark == true ? "dark" : "light"
+    let intrinsic = canvas.intrinsicContentSize
+    let frame = canvas.frame.size
+    check(frame.width > 30 && frame.height > 15,
+          "\(half) panel stays visible", "frame \(frame)")
+    let ratio = intrinsic.width / intrinsic.height
+    let frameRatio = frame.width / frame.height
+    check(abs(ratio - frameRatio) / ratio < 0.15,
+          "\(half) panel keeps its own aspect", "intrinsic \(ratio) vs frame \(frameRatio)")
+    if canvas.forcedDark != true {
+      check(ratio > 2, "hand-written per-scheme layout keys still override (linear wins)",
+            "ratio \(ratio)")
+    }
+  }
+  window.orderOut(nil)
+}
+
+print("19. bundled schemes are pure color: the form owns layout")
+do {
+  // 冷漠曾是带布局键的方案; 降级后选它, 表单的堆叠/显示编码必须生效。
+  let model = BangkeSettingsModel()
+  model.settings.appearance.candidateListLayout = "stacked"
+  model.settings.appearance.inlinePreedit = false
+  model.settings.appearance.colorScheme = "apathy"
+
+  let canvas = BangkePreviewCanvas(frame: NSRect(x: 0, y: 0, width: 600, height: 120))
+  canvas.apply(settings: model.settings)
+  let size = canvas.intrinsicContentSize
+  check(size.height > size.width, "apathy follows the form's stacked layout",
+        "got \(size)")
+}
+
+print("20. linear layout keeps the highlight at full row height")
+do {
+  // 单行模式下编码与候选同行; 曾把编码当整行从候选区扣高, outerBox 被
+  // 扣成 ≤0, expand() 把高亮顶点夹到同一水平线, 高亮塌成零高度 ——
+  // 表现为单行预览不上色、高亮不对。
+  var settings = BangkeSettings.load()
+  settings.appearance.colorScheme = "mojave_dark"
+  settings.appearance.colorSchemeDark = "mojave_dark"
+  settings.appearance.candidateListLayout = "linear"
+  settings.appearance.inlinePreedit = false
+  guard let themes = BangkePreviewTheme.load(settings) else { exit(1) }
+
+  let view = BangkePreviewCanvas(frame: NSRect(x: 0, y: 0, width: 600, height: 120))
+  view.apply(light: themes.light, dark: themes.dark)
+  view.layoutSubtreeIfNeeded()
+  guard let bv = bangkeView(in: view) else { exit(1) }
+  bv.display()   // 离线强制 draw(_:), 图层才会生成
+
+  var highlightHeights: [CGFloat] = []
+  var panelFound = false
+  func walk(_ layer: CALayer) {
+    if let shape = layer as? CAShapeLayer, let path = shape.path, shape.fillColor != nil {
+      let box = path.boundingBox
+      if box.width > 0.9 * bv.bounds.width { panelFound = true }
+      else if box.width > 20 && box.height > 15 { highlightHeights.append(box.height) }
+    }
+    for sub in layer.sublayers ?? [] { walk(sub) }
+  }
+  walk(bv.layer ?? CALayer())
+  check(panelFound, "panel background layer spans the row", "bounds \(bv.bounds.size)")
+  check(highlightHeights.contains { $0 > 15 },
+        "candidate highlight has real height", "heights \(highlightHeights)")
+}
+
+/// Every shape layer in the tree, depth first.
+func shapeLayers(in layer: CALayer) -> [CAShapeLayer] {
+  var found = layer is CAShapeLayer ? [layer as! CAShapeLayer] : []
+  for sub in layer.sublayers ?? [] { found += shapeLayers(in: sub) }
+  return found
+}
+
+/// The layer the panel background is painted on: first sublayer of the view's
+/// own layer, per BangkeView.draw().
+func panelLayer(in view: BangkeView) -> CAShapeLayer? {
+  view.layer?.sublayers?.first as? CAShapeLayer
+}
+
+func subpathCount(_ path: CGPath?) -> Int {
+  guard let path else { return 0 }
+  var count = 0
+  path.applyWithBlock { if $0.pointee.type == .moveToPoint { count += 1 } }
+  return count
+}
+
+print("21. translucency paints the panel colour at 60%, not as authored")
+do {
+  // 配色方案的 back_color 几乎都是不透明的: 照原样画就把面板自己垫在毛玻璃
+  // 之上, 开关看着毫无作用。开了半透明就必须留出透光的余地。
+  let solid = makeTheme(baseYAML("  translucency: false"), dark: false)
+  let frosted = makeTheme(baseYAML("  translucency: true"), dark: false)
+  check(abs(solid.panelBackgroundColor.alphaComponent - 1) < 0.01,
+        "opaque panel keeps the scheme colour as authored",
+        "got \(solid.panelBackgroundColor.alphaComponent)")
+  check(abs(frosted.panelBackgroundColor.alphaComponent - 0.6) < 0.01,
+        "frosted panel drops the fill to 60%",
+        "got \(frosted.panelBackgroundColor.alphaComponent)")
+  check(abs(frosted.backgroundColor.alphaComponent - solid.backgroundColor.alphaComponent) < 0.01,
+        "the theme's own background colour is untouched")
+}
+
+print("22. shadow_size attaches the shadow to a layer that has content")
+do {
+  // Core Animation 只给有内容的图层投影。之前影子挂在一个只有 shadowPath、
+  // 没有任何路径或填充的空图层上 —— 该图层整个不参与合成, 阴影无处投起。
+  let off = canvas(baseYAML("  text_orientation: horizontal\n  shadow_size: 0"))
+  guard let offView = bangkeView(in: off) else { exit(1) }
+  offView.display()
+  check(shapeLayers(in: offView.layer ?? CALayer()).allSatisfy { $0.shadowOpacity == 0 },
+        "no shadow when the slider is at zero")
+
+  let on = canvas(baseYAML("  text_orientation: horizontal\n  shadow_size: 12"))
+  guard let onView = bangkeView(in: on) else { exit(1) }
+  onView.display()
+  let casting = shapeLayers(in: onView.layer ?? CALayer()).filter { $0.shadowOpacity > 0 }
+  check(casting.count == 1, "exactly one layer casts the highlight shadow",
+        "got \(casting.count)")
+  check(casting.allSatisfy { $0.path != nil },
+        "the caster draws its own path — an empty layer casts nothing")
+  check(casting.allSatisfy { abs($0.shadowRadius - 12) < 0.01 },
+        "the radius follows the setting",
+        "got \(casting.map(\.shadowRadius))")
+}
+
+print("23. mutual_exclusive punches the highlight out of the panel fill")
+do {
+  // 「色不叠加」= 面板底色在高亮处挖空, 高亮色直接压在背板之上。底色近乎
+  // 不透明时挖不挖洞看不出差别, 所以这条只有在底色真的半透明时才有意义 ——
+  // 与第 21 条是一组。
+  func panelSubpaths(_ extra: String) -> Int {
+    let view = canvas(baseYAML("  text_orientation: horizontal\n" + extra))
+    guard let bv = bangkeView(in: view) else { exit(1) }
+    bv.display()
+    return subpathCount(panelLayer(in: bv)?.path)
+  }
+  let stacked = panelSubpaths("  mutual_exclusive: false")
+  let exclusive = panelSubpaths("  mutual_exclusive: true")
+  check(stacked == 1, "plain panel fill is one shape", "got \(stacked)")
+  check(exclusive == 2, "the highlight is cut out of it", "got \(exclusive)")
+}
+
+print("24. the transparency slider inverts, the config key does not")
+do {
+  var settings = BangkeSettings()
+  settings.appearance.transparency = 0.25
+  check(abs(settings.appearance.alpha - 0.75) < 1e-9,
+        "the form reads 0.25 transparent", "got \(settings.appearance.alpha)")
+  let written = settings.appearanceEntries().first { $0.0 == "style/alpha" }?.1.yaml
+  check(written == "0.75", "style/alpha still stores opacity", "wrote \(written ?? "nil")")
+
+  var loaded = BangkeSettings.Appearance()
+  loaded.alpha = 0.1
+  check(abs(loaded.transparency - 0.9) < 1e-9,
+        "a hand-written alpha shows up as its complement",
+        "got \(loaded.transparency)")
 }
 
 print(failures == 0 ? "\nALL PASS" : "\n\(failures) FAILURE(S)")
