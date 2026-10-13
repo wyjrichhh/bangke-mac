@@ -206,7 +206,11 @@ if [ "${SKIP_PULL}" != "1" ]; then
         warn "当前分支 $(git rev-parse --abbrev-ref HEAD) 没有上游跟踪分支, 跳过拉取"
         warn "(要基于别的分支打包先 git switch; 要跳过本步用 SKIP_PULL=1)"
     fi
-    git submodule update --init --recursive
+    # librime 这个子模块在本仓库里是**符号链接**（指向仓库外的 bangke-librime，
+    # 三端共用一份源码）。git 的子模块机制不认符号链接，`submodule update` 会直接报
+    # "expected submodule path 'librime' not to be a symbolic link" —— 于是整条 pull
+    # 失败。这里按子模块名把它排除（只影响本次命令，不写进配置），其余子模块照常更新。
+    git -c submodule.librime.update=none submodule update --init --recursive
 
     # ai-predict 插件不在本仓库内: 既可能是指向仓库外独立克隆的符号链接, 也可能是
     # install-plugins.sh 克隆出来的普通目录。两种都被上面的 submodule update 漏掉,
