@@ -196,20 +196,26 @@ esac
 # git pull --ff-only 只在能快进时成功: 若上游也动了本地有未提交改动的文件
 # (如接入 ai-predict 的 project.pbxproj), 会直接拒绝而不是静默覆盖。
 if [ "${SKIP_PULL}" != "1" ]; then
+    # librime 在本仓库里是**符号链接**（指向仓库外的 bangke-librime，三端共用一份源码），
+    # 而 git 索引里它是子模块（gitlink）。只要这样放，拉取就注定失败：上游 commit 一旦动了
+    # 这个 gitlink，merge 就要更新那条路径，而 git 的子模块机制不认符号链接 ——
+    # "expected submodule path 'librime' not to be a symbolic link"。所以先认出来、
+    # 直接跳过拉取（而不是让每次出包的人都得记得 SKIP_PULL=1）。
+    if [ -L librime ]; then
+        warn "librime 是指向仓库外的符号链接 —— 跳过 git pull 与子模块更新"
+        warn "(要基于上游最新提交出包: 先 rm librime && git submodule update --init librime 换成真子模块)"
     # 只有当前分支真有上游时才拉: 特性分支(如从 main 切出来的工作分支)没有
     # 跟踪分支, git pull 会直接报 "no tracking information" —— 那是正常状态,
     # 不该当成错误中断打包。
-    if upstream_ref="$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)"; then
+    elif upstream_ref="$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)"; then
         log "拉取官方代码 (git pull --ff-only ${upstream_ref} + submodule update)"
         git pull --ff-only || die "git pull ${upstream_ref} 失败: 可能是本地未提交改动会被覆盖、分支已分叉、或网络/凭据问题。先 git stash / 手动合并, 或用 SKIP_PULL=1 跳过"
     else
         warn "当前分支 $(git rev-parse --abbrev-ref HEAD) 没有上游跟踪分支, 跳过拉取"
         warn "(要基于别的分支打包先 git switch; 要跳过本步用 SKIP_PULL=1)"
     fi
-    # librime 这个子模块在本仓库里是**符号链接**（指向仓库外的 bangke-librime，
-    # 三端共用一份源码）。git 的子模块机制不认符号链接，`submodule update` 会直接报
-    # "expected submodule path 'librime' not to be a symbolic link" —— 于是整条 pull
-    # 失败。这里按子模块名把它排除（只影响本次命令，不写进配置），其余子模块照常更新。
+    # 同上：librime 是符号链接时按子模块名排除（只影响本次命令，不写进配置），
+    # 其余子模块照常更新。
     git -c submodule.librime.update=none submodule update --init --recursive
 
     # ai-predict 插件不在本仓库内: 既可能是指向仓库外独立克隆的符号链接, 也可能是
