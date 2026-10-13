@@ -47,8 +47,8 @@ if [ -d "${BANGKE_DIR}" ]; then
     # 而 set -e 会把它变成「安装脚本出错」整个中止安装）。
     /usr/bin/sudo -u "${LOGIN_USER}" /bin/mkdir -p "${BACKUP}"
     if /usr/bin/sudo -u "${LOGIN_USER}" /usr/bin/rsync -a \
-            --exclude 'predict_models/' --exclude 'rime-ice/' --exclude 'dicts/' \
-            --exclude 'build/' --exclude 'sync/' \
+            --exclude 'predict_models/' --exclude 'build/' \
+            --exclude 'cn_dicts/' --exclude 'en_dicts/' --exclude 'lua/' --exclude 'opencc/' \
             "${BANGKE_DIR}/" "${BACKUP}/" >> "${LOG}" 2>&1; then
         :
     else
