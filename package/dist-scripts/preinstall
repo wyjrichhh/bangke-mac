@@ -42,11 +42,20 @@ if [ -d "${BANGKE_DIR}" ]; then
     # 只备份**用户自己的东西**：predict_models/（模型）、rime-ice/（雾凇方案）、dicts/（扩展
     # 词库）、build/ 都是包里自带、可再生的（模型还由 sha 指纹管理），备份它们纯属浪费 ——
     # 实测每份备份 415MB、其中 230MB 是模型副本，17 次安装攒了 13.8GB。排除后每份只剩几 MB。
-    mkdir -p "${BACKUP}"
-    /usr/bin/sudo -u "${LOGIN_USER}" /usr/bin/rsync -a \
-        --exclude 'predict_models/' --exclude 'rime-ice/' --exclude 'dicts/' \
-        --exclude 'build/' --exclude 'sync/' \
-        "${BANGKE_DIR}/" "${BACKUP}/" >> "${LOG}" 2>&1
+    # 目标目录必须**以用户身份**建：preinstall 整体是 root，root 建的目录属主是 root，
+    # 紧接着以用户身份跑的 rsync 就写不进去（满屏 mkpathat: Permission denied，
+    # 而 set -e 会把它变成「安装脚本出错」整个中止安装）。
+    /usr/bin/sudo -u "${LOGIN_USER}" /bin/mkdir -p "${BACKUP}"
+    if /usr/bin/sudo -u "${LOGIN_USER}" /usr/bin/rsync -a \
+            --exclude 'predict_models/' --exclude 'rime-ice/' --exclude 'dicts/' \
+            --exclude 'build/' --exclude 'sync/' \
+            "${BANGKE_DIR}/" "${BACKUP}/" >> "${LOG}" 2>&1; then
+        :
+    else
+        # 备份只是安全网：装包本身只删 build/、其余是合并（postinstall），不动用户数据。
+        # 所以备份没做完**不该**让整个安装失败 —— 记一笔响亮的日志，继续装。
+        echo "[preinstall] WARN: 备份未完成（用户数据未受影响，继续安装）" >> "${LOG}"
+    fi
     /bin/cat > "${BACKUP}/BACKUP-README.txt" <<'BKEOF'
 安装前的用户数据备份（只含你自己的东西）。
   含：  *.custom.yaml、user.yaml、installation.yaml、*.userdb（词典与学习记忆）
