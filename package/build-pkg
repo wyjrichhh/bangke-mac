@@ -7,6 +7,7 @@
 # 是因为本分发版要额外塞三样东西，那是上游链路没有的：
 #   1. CTranslate2 模型        -> SharedSupport/predict_models/
 #   2. 默认 custom.yaml        -> SharedSupport/ai-predict-defaults/
+#   3. 卸载脚本                -> SharedSupport/uninstall.sh
 #   3. 分发版 preinstall/postinstall (备份/清理旧 Rime 配置, 落地模型)
 # 两套并存的直接后果是安装行为会漂移，所以只留这一条。
 #
@@ -312,6 +313,12 @@ else
     warn "未发现 ${RIME_ICE_DIR}, 打出的包不带 rime-ice 方案"
 fi
 cp -R "${MODEL_SRC}/." "${INJECT_MODEL}/"
+
+# 卸载脚本：用户机器上没有仓库，所以随 app 一起分发（渲染品牌占位符后再放进去）。
+sed -e "s/@APP_NAME@/${APP_NAME}/g" -e "s/@BUNDLE_ID@/${BUNDLE_ID}/g" \
+    "${SCRIPT_DIR}/uninstall" > "${SHARED}/uninstall.sh"
+chmod 0755 "${SHARED}/uninstall.sh"
+ok "已注入卸载脚本 SharedSupport/uninstall.sh"
 
 YAML_COUNT=$(ls "${INJECT_DEFAULTS}" | wc -l | tr -d ' ')
 ok "已注入: ${YAML_COUNT} 个 custom.yaml ($(ls "${INJECT_DEFAULTS}" | xargs)) + 模型 $(du -sh "${INJECT_MODEL}" | awk '{print $1}')"

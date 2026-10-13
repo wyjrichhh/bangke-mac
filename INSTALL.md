@@ -158,6 +158,35 @@ make install
 安装到 `/Library/Input Methods/BangkePinyin.app`，然后到
 「系统设置 → 键盘 → 输入法」添加「蚌壳拼音」。
 
+## 卸载
+
+卸载脚本随 app 一起分发（用户机器上没有仓库），在 app 自己的 `SharedSupport` 里：
+
+``` sh
+# 停用输入法 + 删 app + 摘掉 pkg 收据；用户数据一概不动
+bash "/Library/Input Methods/BangkePinyin.app/Contents/SharedSupport/uninstall.sh"
+
+# 连用户数据一起删（词典、自造词、学习记忆、你自己的 *.custom.yaml —— 不可恢复）
+bash "…/uninstall.sh" --purge-data
+
+# 连历史备份、日志、偏好一起删
+bash "…/uninstall.sh" --purge-backups
+
+# 只看看会做什么
+bash "…/uninstall.sh" --dry-run
+```
+
+数据在哪、删不删由你定：
+
+| 路径 | 是什么 |
+|---|---|
+| `~/Library/BangkePinyin/` | 用户数据：词典、自造词、学习记忆、`*.custom.yaml`、模型副本。**默认保留** |
+| `~/Library/BangkePinyin.backup-*/` | 每次安装前的用户数据备份（只含你自己的东西，模型/词库不在内）。最近 3 份 |
+| `~/Library/Logs/BangkePinyin/` | 安装日志与运行日志 |
+| `~/Library/Preferences/<bundle-id>.plist` | 设置窗口里的偏好 |
+
+> 装的时候**只碰自己的私有目录**，绝不碰 `~/Library/Rime`（那是鼠须管等发行版的地盘）。
+
 ## 清理产物
 
 重新来过之前，**务必先清掉上一次的构建产物**。

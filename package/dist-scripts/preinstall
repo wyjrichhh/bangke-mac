@@ -38,8 +38,33 @@ if [ -d "${BANGKE_DIR}" ]; then
     STAMP=$(date +%Y%m%d-%H%M%S)
     BACKUP="${LOGIN_HOME}/Library/BangkePinyin.backup-${STAMP}"
 
-    echo "[preinstall] backing up ${BANGKE_DIR} -> ${BACKUP}" >> "${LOG}"
-    /usr/bin/sudo -u "${LOGIN_USER}" /bin/cp -R "${BANGKE_DIR}" "${BACKUP}"
+    echo "[preinstall] backing up ${BANGKE_DIR} -> ${BACKUP} (只含用户数据)" >> "${LOG}"
+    # 只备份**用户自己的东西**：predict_models/（模型）、rime-ice/（雾凇方案）、dicts/（扩展
+    # 词库）、build/ 都是包里自带、可再生的（模型还由 sha 指纹管理），备份它们纯属浪费 ——
+    # 实测每份备份 415MB、其中 230MB 是模型副本，17 次安装攒了 13.8GB。排除后每份只剩几 MB。
+    mkdir -p "${BACKUP}"
+    /usr/bin/sudo -u "${LOGIN_USER}" /usr/bin/rsync -a \
+        --exclude 'predict_models/' --exclude 'rime-ice/' --exclude 'dicts/' \
+        --exclude 'build/' --exclude 'sync/' \
+        "${BANGKE_DIR}/" "${BACKUP}/" >> "${LOG}" 2>&1
+    /bin/cat > "${BACKUP}/BACKUP-README.txt" <<'BKEOF'
+安装前的用户数据备份（只含你自己的东西）。
+  含：  *.custom.yaml、user.yaml、installation.yaml、*.userdb（词典与学习记忆）
+  不含：predict_models/（模型）、rime-ice/（雾凇方案）、dicts/（扩展词库）、build/（部署产物）
+        —— 这些包里自带、可再生，重新安装时由 postinstall 重新铺。
+恢复：把这里的文件拷回 ~/Library/BangkePinyin/ 即可。
+BKEOF
+    /usr/sbin/chown -R "${LOGIN_USER}:staff" "${BACKUP}" 2>/dev/null || true
+
+    # 只保留最近 3 份。以前没有保留策略 —— 装 N 次就攒 N 份（实测 17 份 / 13.8GB）。
+    # 只认我们自己这个命名前缀，别的一概不碰。
+    BACKUP_KEEP=3
+    ls -dt "${LOGIN_HOME}"/Library/BangkePinyin.backup-* 2>/dev/null \
+        | tail -n +$((BACKUP_KEEP + 1)) \
+        | while IFS= read -r old; do
+            echo "[preinstall] pruning old backup ${old}" >> "${LOG}"
+            rm -rf "${old}"
+        done
 
     # These files are NOT removed. postinstall merges the shipped engine wiring
     # into them while keeping the values the user set in the settings window, so

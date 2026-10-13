@@ -1,0 +1,110 @@
+#!/bin/bash
+#
+# 卸载 @APP_NAME@。随 app 分发在它自己的 SharedSupport 里，所以用户机器上不用找仓库：
+#
+#   bash "/Library/Input Methods/@APP_NAME@/Contents/SharedSupport/uninstall.sh"
+#
+# 默认只做「安全那半」：停用输入法 → 退出进程 → 删 app bundle → 摘掉 pkg 收据。
+# **用户数据一概不动**。要连数据一起清，得显式加参数：
+#
+#   --purge-data      连 ~/Library/BangkePinyin 一起删
+#                     （词典、自造词、学习记忆、你自己的 *.custom.yaml —— 删了不可恢复）
+#   --purge-backups   连历史备份、安装/运行日志、偏好一起删
+#   --dry-run         只打印要做什么，什么都不动
+#
+# 为什么要有它：以前**没有任何卸载路径** —— 装是干净的（只碰自己的私有目录、不碰
+# ~/Library/Rime），卸却只能手工拖走 app，剩下的注册项、备份、日志、偏好全靠用户猜。
+# 备份还曾经无限累积（每装一次留一份 415MB，实测攒到 13.8GB），那部分已在 preinstall 里修掉。
+set -euo pipefail
+
+APP_NAME="@APP_NAME@"
+BUNDLE_ID="@BUNDLE_ID@"
+APP="/Library/Input Methods/${APP_NAME}"
+BIN="${APP}/Contents/MacOS/${APP_NAME%.app}"
+
+PURGE_DATA=0
+PURGE_BACKUPS=0
+DRY_RUN=0
+for arg in "$@"; do
+    case "${arg}" in
+        --purge-data)    PURGE_DATA=1 ;;
+        --purge-backups) PURGE_BACKUPS=1 ;;
+        --dry-run)       DRY_RUN=1 ;;
+        -h|--help)       sed -n '2,20p' "$0"; exit 0 ;;
+        *) echo "未知参数: ${arg}（用 --help 看用法）" >&2; exit 2 ;;
+    esac
+done
+
+# 安装/卸载都要找「当前登录的那个用户」—— TIS* 输入法 API 必须在他的会话里调，
+# root 调不动（preinstall/postinstall 也是这么找的）。
+LOGIN_USER=$(/usr/bin/stat -f%Su /dev/console)
+LOGIN_HOME=$(/usr/bin/dscl . -read "/Users/${LOGIN_USER}" NFSHomeDirectory 2>/dev/null | awk '{print $2}')
+[ -n "${LOGIN_HOME}" ] || LOGIN_HOME="/Users/${LOGIN_USER}"
+USER_DIR="${LOGIN_HOME}/Library/BangkePinyin"
+
+run() {
+    if [ "${DRY_RUN}" = 1 ]; then printf '  [dry-run] %s\n' "$*"; return 0; fi
+    "$@"
+}
+
+echo "卸载 ${APP_NAME}（用户 ${LOGIN_USER}${DRY_RUN:+, dry-run}）"
+
+# 1) 停用输入法：先让 app 自己调 TISDisableInputSource，摘掉系统输入法列表里的条目。
+#    顺序很重要 —— app 删掉之后就没人能做这件事了。
+if [ -x "${BIN}" ]; then
+    echo "1) 停用输入法"
+    run /usr/bin/sudo -u "${LOGIN_USER}" "${BIN}" --disable-input-source || \
+        echo "   （停用失败，可能在设置里已经手动移除了）"
+    run /usr/bin/sudo -u "${LOGIN_USER}" "${BIN}" --quit || true
+fi
+
+# 2) 确认进程退出（--quit 是优雅退出，给它一点时间）
+if [ "${DRY_RUN}" != 1 ]; then
+    for _ in 1 2 3 4 5; do pgrep -f "${APP}/Contents/MacOS/" >/dev/null || break; sleep 1; done
+    pkill -f "${APP}/Contents/MacOS/" 2>/dev/null || true
+fi
+
+# 3) 删 app bundle
+echo "2) 删除 ${APP}"
+if [ -d "${APP}" ]; then run /bin/rm -rf "${APP}"; else echo "   （已经不在）"; fi
+
+# 4) 摘掉 pkg 收据（装过 pkg 才有）—— 留着它，下次装会被当成「已安装同一版本」
+echo "3) 摘掉安装收据 ${BUNDLE_ID}"
+if /usr/sbin/pkgutil --pkg-info "${BUNDLE_ID}" >/dev/null 2>&1; then
+    run /usr/sbin/pkgutil --forget "${BUNDLE_ID}"
+else
+    echo "   （没有收据）"
+fi
+
+# 5) 用户数据：**默认不动**。这是用户的资产（词典/自造词/学习记忆），
+#    重装或换机器时还要用，所以只有显式 --purge-data 才删。
+echo "4) 用户数据 ${USER_DIR}"
+if [ "${PURGE_DATA}" = 1 ]; then
+    if [ -d "${USER_DIR}" ]; then run /bin/rm -rf "${USER_DIR}"; else echo "   （不存在）"; fi
+else
+    echo "   保留（词典与自造词都在这儿）。要删：加 --purge-data"
+fi
+
+# 6) 备份 / 日志 / 偏好
+echo "5) 备份、日志与偏好"
+if [ "${PURGE_BACKUPS}" = 1 ]; then
+    if [ "${DRY_RUN}" = 1 ]; then
+        printf '  [dry-run] rm -rf %s/Library/BangkePinyin.backup-* %s/Library/BangkePinyin.userdb-backup*\n' \
+               "${LOGIN_HOME}" "${LOGIN_HOME}"
+        printf '  [dry-run] rm -rf %s/Library/Logs/BangkePinyin\n' "${LOGIN_HOME}"
+        printf '  [dry-run] rm -f  %s/Library/Preferences/%s.plist\n' "${LOGIN_HOME}" "${BUNDLE_ID}"
+    else
+        rm -rf "${LOGIN_HOME}"/Library/BangkePinyin.backup-* \
+               "${LOGIN_HOME}"/Library/BangkePinyin.userdb-backup* \
+               "${LOGIN_HOME}"/Library/Logs/BangkePinyin \
+               "${LOGIN_HOME}"/Library/Preferences/"${BUNDLE_ID}".plist 2>/dev/null || true
+    fi
+else
+    echo "   保留（含历史备份）。要删：加 --purge-backups"
+fi
+
+echo
+echo "完成。若系统设置 → 键盘 → 输入法里还留着这一条，手动点掉即可（正常情况下停用后就没了）。"
+[ "${PURGE_DATA}" = 0 ] && [ "${DRY_RUN}" = 0 ] && \
+    echo "用户数据仍在 ${USER_DIR} —— 想彻底清干净就再跑一次带 --purge-data --purge-backups"
+exit 0
