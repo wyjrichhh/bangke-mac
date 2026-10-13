@@ -46,7 +46,11 @@ $(RIME_DEPS):
 	$(MAKE) -C librime deps
 
 librime: $(RIME_DEPS)
-	$(MAKE) -C librime release install
+	# 两个目标必须**串行**：librime 的 Makefile 自己开 -j，而 release 与 install 各自
+	# 起一个 `cmake --build build`，并行跑会同时编/链同一批目标 —— 真机撞到过
+	# "ld: open() failed, errno=17 (File exists) for 'rime_test'"（同一个目标链两次）。
+	$(MAKE) -C librime release
+	$(MAKE) -C librime install
 	$(MAKE) copy-rime-binaries
 
 copy-rime-binaries:
