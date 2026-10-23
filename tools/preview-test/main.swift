@@ -15,6 +15,21 @@ setvbuf(stdout, nil, _IONBF, 0)
 _ = NSApplication.shared
 initializeRimeForHarness()
 
+// Open the production settings view against the isolated harness configuration.
+if CommandLine.arguments.contains("--review") {
+  let model = BangkeSettingsModel()
+  let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 840),
+                        styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+  window.title = "蚌壳拼音 · 界面验证"
+  window.contentView = NSHostingView(rootView: BangkePreferencesView(model: model, onClose: { NSApp.terminate(nil) }))
+  NSApp.setActivationPolicy(.regular)
+  window.center()
+  window.makeKeyAndOrderFront(nil)
+  NSApp.activate(ignoringOtherApps: true)
+  NSApp.run()
+  exit(0)
+}
+
 var failures = 0
 func check(_ condition: Bool, _ label: String, _ detail: String = "") {
   if condition { print("  ok   \(label)") }

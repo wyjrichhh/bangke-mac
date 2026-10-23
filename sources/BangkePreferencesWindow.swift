@@ -383,7 +383,10 @@ struct AppearanceSettingsPage: View {
         }
         .font(.caption)
         .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
-        Text("今天，bangke").font(.system(size: 18))
+        Text(settings.appearance.inlineCandidate
+             ? (longSample ? "今天，让每一次输入都恰到好处" : "今天，蚌壳")
+             : (settings.appearance.inlinePreedit ? "今天，bangke" : "今天，"))
+          .font(.system(size: 18))
         ScrollView([.horizontal, .vertical]) {
           BangkePreviewRepresentable(settings: settings, dark: dark, longSample: longSample,
             onPanelSize: { if dark { darkSize = $0 } else { lightSize = $0 } })
