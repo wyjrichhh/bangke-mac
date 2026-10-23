@@ -66,6 +66,22 @@
         }
       }
     },
+    "AI examples show appearance and position, not actual model output.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 示例用于预览样式与位置，不代表真实模型输出。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 範例用於預覽樣式與位置，不代表真實模型輸出。"
+          }
+        }
+      }
+    },
     "AI-only candidates": {
       "localizations": {
         "zh-Hans": {

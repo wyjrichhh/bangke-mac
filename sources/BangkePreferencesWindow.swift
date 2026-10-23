@@ -66,7 +66,10 @@ final class BangkeSettingsModel: ObservableObject {
   var schemaSelection: Binding<String> {
     Binding(
       get: { self.settings.selectedAISchema },
-      set: { self.settings.selectedAISchema = $0; self.userPickedSchema = true }
+      set: {
+        self.settings.selectedAISchema = $0
+        self.userPickedSchema = true
+      }
     )
   }
 
@@ -110,9 +113,12 @@ final class BangkePreferencesWindowController: NSWindowController, NSWindowDeleg
     window.titlebarSeparatorStyle = .none
     self.init(window: window)
     window.delegate = self
-    window.contentView = NSHostingView(rootView: BangkePreferencesView(model: model, onClose: { [weak self] in
-      self?.close()
-    }))
+    window.contentView = NSHostingView(
+      rootView: BangkePreferencesView(
+        model: model,
+        onClose: { [weak self] in
+          self?.close()
+        }))
     window.center()
   }
 
@@ -123,10 +129,8 @@ final class BangkePreferencesWindowController: NSWindowController, NSWindowDeleg
 
 // MARK: - Navigation
 
-private enum SettingsPage: String, CaseIterable, Identifiable {
+private enum SettingsPage: String, CaseIterable {
   case appearance, behavior, aiPrediction, about
-
-  var id: String { rawValue }
 
   var title: LocalizedStringKey {
     switch self {
@@ -176,14 +180,17 @@ struct BangkePreferencesView: View {
         Spacer()
       }
       HStack(spacing: 8) {
-        ForEach(SettingsPage.allCases) { item in
-          Button { page = item } label: {
+        ForEach(SettingsPage.allCases, id: \.self) { item in
+          Button {
+            page = item
+          } label: {
             Text(item.title)
               .font(.system(size: 14, weight: .semibold))
               .padding(.horizontal, 18).padding(.vertical, 12)
               .foregroundStyle(Color(nsColor: BangkePalette.color(page == item ? .accent : .muted)))
-              .background(Color(nsColor: BangkePalette.color(.soft)).opacity(page == item ? 1 : 0),
-                          in: RoundedRectangle(cornerRadius: 8))
+              .background(
+                Color(nsColor: BangkePalette.color(.soft)).opacity(page == item ? 1 : 0),
+                in: RoundedRectangle(cornerRadius: 8))
           }
           .buttonStyle(.plain)
         }
@@ -199,18 +206,22 @@ struct BangkePreferencesView: View {
     // not carry over between pages.
     switch page {
     case .appearance:
-      AppearanceSettingsPage(settings: $model.settings,
-                             colorSchemes: model.colorSchemes,
-                             fontFamilies: model.fontFamilies)
-        .id(SettingsPage.appearance)
+      AppearanceSettingsPage(
+        settings: $model.settings,
+        colorSchemes: model.colorSchemes,
+        fontFamilies: model.fontFamilies
+      )
+      .id(SettingsPage.appearance)
     case .behavior:
-      BehaviorSettingsPage(settings: $model.settings.behavior)
+      BehaviorSettingsPage(settings: $model.settings.behavior, previewSettings: model.settings)
         .id(SettingsPage.behavior)
     case .aiPrediction:
-      AIPredictSettingsPage(settings: model.aiBinding,
-                            selectedSchema: model.schemaSelection,
-                            schemas: model.settings.aiSchemas)
-        .id(SettingsPage.aiPrediction)
+      AIPredictSettingsPage(
+        settings: model.aiBinding,
+        selectedSchema: model.schemaSelection,
+        schemas: model.settings.aiSchemas, previewSettings: model.settings
+      )
+      .id(SettingsPage.aiPrediction)
     case .about:
       AboutSettingsPage()
         .id(SettingsPage.about)
@@ -284,10 +295,6 @@ struct AppearanceSettingsPage: View {
   let fontFamilies: [String]
 
   /// Keep each appearance's measured size so switching themes never scales the preview.
-  @State private var lightSize: CGSize = .zero
-  @State private var darkSize: CGSize = .zero
-  @Environment(\.colorScheme) private var colorScheme
-  @State private var longSample = false
   @State private var advanced = false
 
   var body: some View {
@@ -313,23 +320,32 @@ struct AppearanceSettingsPage: View {
         SettingsChoice("Font", selection: $settings.appearance.fontFace, options: fontFamilies.map { ($0, $0) })
         SettingsSlider(title: "Font size", value: $settings.appearance.fontPoint, range: 8...48, step: 1)
         SettingsSlider(title: "Corner radius", value: $settings.appearance.cornerRadius, range: 0...30, step: 1)
-        SettingsChoice("Candidate list", selection: $settings.appearance.candidateListLayout, options: choices([
-            ("stacked", "Stacked"), ("linear", "Linear")]))
+        SettingsChoice(
+          "Candidate list", selection: $settings.appearance.candidateListLayout,
+          options: choices([
+            ("stacked", "Stacked"), ("linear", "Linear")
+          ]))
       }
 
       DisclosureGroup("More appearance options", isExpanded: $advanced) {
         VStack(alignment: .leading, spacing: 22) {
           SettingsSection("Color") {
-            SettingsChoice("Dark color scheme", selection: $settings.appearance.colorSchemeDark, options: [("", NSLocalizedString("Follow light scheme", comment: ""))]
-              + colorSchemes.map { ($0.id, $0.name) })
-            SettingsSlider(title: "Background transparency",
-            hint: "1 is fully transparent, 0 is opaque.",
-            value: $settings.appearance.transparency, range: 0...1, step: 0.05)
+            SettingsChoice(
+              "Dark color scheme", selection: $settings.appearance.colorSchemeDark,
+              options: [("", NSLocalizedString("Follow light scheme", comment: ""))]
+                + colorSchemes.map { ($0.id, $0.name) })
+            SettingsSlider(
+              title: "Background transparency",
+              hint: "1 is fully transparent, 0 is opaque.",
+              value: $settings.appearance.transparency, range: 0...1, step: 0.05)
           }
           SettingsSection("Layout") {
-            SettingsChoice("Text orientation", selection: $settings.appearance.textOrientation, options: choices([
-            ("horizontal", "Horizontal"),
-            ("vertical", "Vertical")]))
+            SettingsChoice(
+              "Text orientation", selection: $settings.appearance.textOrientation,
+              options: choices([
+                ("horizontal", "Horizontal"),
+                ("vertical", "Vertical")
+              ]))
             SettingsSlider(title: "Highlight corner radius", value: $settings.appearance.hilitedCornerRadius, range: 0...30, step: 1)
             SettingsSlider(title: "Line spacing", value: $settings.appearance.lineSpacing, range: -10...30, step: 1)
             SettingsSlider(title: "Preedit spacing", value: $settings.appearance.spacing, range: -10...30, step: 1)
@@ -348,15 +364,19 @@ struct AppearanceSettingsPage: View {
           SettingsSection("Format") {
             SettingsRow {
               TextField("", text: $settings.appearance.candidateFormat)
-              .labelsHidden()
+                .labelsHidden()
             } label: {
-              SettingLabel("Candidate format",
-              hint: "Use [label], [candidate] and [comment] as placeholders.")
+              SettingLabel(
+                "Candidate format",
+                hint: "Use [label], [candidate] and [comment] as placeholders.")
             }
-            SettingsChoice("Status messages", selection: $settings.appearance.statusMessageType, options: choices([
-            ("long", "Long"),
-            ("short", "Short"),
-            ("mix", "Mixed")]))
+            SettingsChoice(
+              "Status messages", selection: $settings.appearance.statusMessageType,
+              options: choices([
+                ("long", "Long"),
+                ("short", "Short"),
+                ("mix", "Mixed")
+              ]))
           }
         }
         .padding(.top, 16)
@@ -364,95 +384,75 @@ struct AppearanceSettingsPage: View {
     }
   }
 
-  private var preview: some View {
-    let dark = colorScheme == .dark
-    let size = dark ? darkSize : lightSize
-    return VStack(alignment: .leading, spacing: 12) {
-      Text("Preview").font(.system(size: 13, weight: .semibold))
-        .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
-      VStack(alignment: .leading, spacing: 16) {
-        HStack {
-          Text("Document · Input scene")
-          Spacer()
-          Text(dark ? LocalizedStringKey("Dark preview") : LocalizedStringKey("Light preview"))
-        }
-        .font(.caption)
-        .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
-        Text(settings.appearance.inlineCandidate
-             ? (longSample ? "今天，让每一次输入都恰到好处" : "今天，蚌壳")
-             : (settings.appearance.inlinePreedit ? "今天，bangke" : "今天，"))
-          .font(.system(size: 18))
-        ScrollView([.horizontal, .vertical]) {
-          BangkePreviewRepresentable(settings: settings, dark: dark, longSample: longSample,
-            onPanelSize: { if dark { darkSize = $0 } else { lightSize = $0 } })
-            .frame(width: max(1, size.width), height: max(1, size.height))
-        }
-        HStack {
-          Button { longSample = false } label: { Text("Normal candidates").frame(maxWidth: .infinity) }
-            .buttonStyle(SettingsButtonStyle(primary: !longSample))
-          Button { longSample = true } label: { Text("Long candidates").frame(maxWidth: .infinity) }
-            .buttonStyle(SettingsButtonStyle(primary: longSample))
-        }
+  private var preview: some View { SettingsLivePreview(settings: settings) }
 
-        Text("Original font size · Scroll to view overflow").font(.caption)
-          .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
-      }
-      .padding(20)
-      .frame(height: 360)
-      .background(Color(nsColor: BangkePalette.color(.card)), in: RoundedRectangle(cornerRadius: 12))
-      .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(nsColor: BangkePalette.color(.line)).opacity(0.4)))
-      Text("Adjust settings on the left to preview candidate changes.").font(.caption)
-        .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
-    }
-  }
 }
 
 // MARK: - Behavior
 
 struct BehaviorSettingsPage: View {
   @Binding var settings: BangkeSettings.Behavior
+  let previewSettings: BangkeSettings
 
   var body: some View {
     VStack(spacing: 0) {
-      SettingsPageHeader(title: "Behavior",
-                         subtitle: "Menu bar and typing behavior.")
-      SettingsForm {
-        SettingsSection("Menu Bar") {
-          Toggle("Show status icon in the menu bar", isOn: $settings.showStatusIcon)
-          SettingsChoice("Notifications", selection: $settings.notificationsWhen, options: choices([
+      SettingsPageHeader(
+        title: "Behavior",
+        subtitle: "Menu bar and typing behavior.")
+      HStack(alignment: .top, spacing: 28) {
+        form.frame(maxWidth: .infinity, maxHeight: .infinity)
+        SettingsLivePreview(settings: previewSettings).frame(maxWidth: .infinity)
+      }
+      .padding(.horizontal, 30).padding(.bottom, 24)
+
+    }
+  }
+  private var form: some View {
+    SettingsForm {
+      SettingsSection("Menu Bar") {
+        Toggle("Show status icon in the menu bar", isOn: $settings.showStatusIcon)
+        SettingsChoice(
+          "Notifications", selection: $settings.notificationsWhen,
+          options: choices([
             ("never", "Never"),
             ("appropriate", "When appropriate"),
-            ("always", "Always")]))
-        }
-
-        SettingsSection("Typing") {
-          SettingsSlider(title: "Candidates per page", value: $settings.pageSize, range: 1...20, step: 1)
-          SettingsSlider(title: "Chord duration", value: $settings.chordDuration, range: 0...1, step: 0.01)
-          SettingsChoice("Left Shift", selection: $settings.shiftLeftAction, options: choices([
-            ("commit_code", "Commit code"),
-            ("commit_text", "Commit text"),
-            ("inline_ascii", "Inline ASCII"),
-            ("clear", "Clear"),
-            ("noop", "Do nothing")]))
-          SettingsChoice("Right Shift", selection: $settings.shiftRightAction, options: choices([
-            ("commit_code", "Commit code"),
-            ("commit_text", "Commit text"),
-            ("inline_ascii", "Inline ASCII"),
-            ("clear", "Clear"),
-            ("noop", "Do nothing")]))
-        }
-
-        SettingsSection("Keyboard Layout") {
-          SettingsRow {
-            TextField("", text: $settings.keyboardLayout)
-              .labelsHidden()
-          } label: {
-            SettingLabel("Layout",
-                         hint: "Use last, default, or a layout name such as com.apple.keylayout.ABC.")
-          }
-        }
+            ("always", "Always")
+          ]))
       }
 
+      SettingsSection("Typing") {
+        SettingsSlider(title: "Candidates per page", value: $settings.pageSize, range: 1...20, step: 1)
+        SettingsSlider(title: "Chord duration", value: $settings.chordDuration, range: 0...1, step: 0.01)
+        SettingsChoice(
+          "Left Shift", selection: $settings.shiftLeftAction,
+          options: choices([
+            ("commit_code", "Commit code"),
+            ("commit_text", "Commit text"),
+            ("inline_ascii", "Inline ASCII"),
+            ("clear", "Clear"),
+            ("noop", "Do nothing")
+          ]))
+        SettingsChoice(
+          "Right Shift", selection: $settings.shiftRightAction,
+          options: choices([
+            ("commit_code", "Commit code"),
+            ("commit_text", "Commit text"),
+            ("inline_ascii", "Inline ASCII"),
+            ("clear", "Clear"),
+            ("noop", "Do nothing")
+          ]))
+      }
+
+      SettingsSection("Keyboard Layout") {
+        SettingsRow {
+          TextField("", text: $settings.keyboardLayout)
+            .labelsHidden()
+        } label: {
+          SettingLabel(
+            "Layout",
+            hint: "Use last, default, or a layout name such as com.apple.keylayout.ABC.")
+        }
+      }
     }
   }
 }
@@ -463,49 +463,62 @@ struct AIPredictSettingsPage: View {
   @Binding var settings: BangkeSettings.AIPredict
   @Binding var selectedSchema: String
   let schemas: [BangkeSettings.NamedOption]
+  let previewSettings: BangkeSettings
 
   var body: some View {
     VStack(spacing: 0) {
-      SettingsPageHeader(title: "AI Prediction",
-                         subtitle: "Model predictions for each input method.")
+      SettingsPageHeader(
+        title: "AI Prediction",
+        subtitle: "Model predictions for each input method.")
       // 方案选择用分段滑块、且与配置项同处一张卡片: 切换滑块时整卡内容
       // 一起变化, 直观传达「这套配置属于所选方案」。
-      SettingsForm {
-        SettingsSection {
-          SettingsRow {
-            SettingsChoice("", selection: $selectedSchema, options: schemas.map { ($0.id, $0.name) })
-          } label: {
-            SettingLabel("Input method", hint: "Each input method keeps its own AI settings.")
-          }
-
-          Toggle("Enable AI prediction", isOn: $settings.enabled)
-          Toggle(isOn: $settings.filterPunctuation) {
-            SettingLabel("Filter punctuation",
-                         hint: "Strips the punctuation the model predicts. Turn off to let candidates keep it.")
-          }
-          Toggle(isOn: $settings.aiOnly) {
-            SettingLabel("AI-only candidates",
-                         hint: "Candidates come from the model alone: no dictionary words, one suggestion with no label.")
-          }
-          SettingsSlider(title: "Candidate position",
-                         hint: "AI candidates must sit below the search range to appear.",
-                         value: $settings.targetIndex, range: 0...20, step: 1)
-          SettingsSlider(title: "Minimum input length", value: $settings.minInputLength, range: 1...40, step: 1)
-          SettingsSlider(title: "Minimum characters", value: $settings.minHanzi, range: 1...10, step: 1)
-          SettingsSlider(title: "Debounce (ms)",
-                         hint: "Applies to every input method that has AI prediction wired in.",
-                         value: $settings.debounceMs, range: 0...2000, step: 20)
-
-          Divider()
-
-          SettingsSlider(title: "Search range", value: $settings.searchRange, range: 1...50, step: 1)
-          SettingsSlider(title: "Context window", value: $settings.contextWindowSize, range: 1...50, step: 1)
-          SettingsSlider(title: "Minimum context length", value: $settings.minContextPromptLength, range: 1...20, step: 1)
-          SettingsSlider(title: "Max tokens", value: $settings.maxTokens, range: 8...512, step: 8)
-          SettingsChoice("Device", selection: $settings.device, options: [("cpu", "CPU")])
-        }
+      HStack(alignment: .top, spacing: 28) {
+        form.frame(maxWidth: .infinity, maxHeight: .infinity)
+        SettingsLivePreview(settings: previewSettings, aiSettings: settings).frame(maxWidth: .infinity)
       }
+      .padding(.horizontal, 30).padding(.bottom, 24)
 
+    }
+  }
+  private var form: some View {
+    SettingsForm {
+      SettingsSection {
+        SettingsRow {
+          SettingsChoice("", selection: $selectedSchema, options: schemas.map { ($0.id, $0.name) })
+        } label: {
+          SettingLabel("Input method", hint: "Each input method keeps its own AI settings.")
+        }
+
+        Toggle("Enable AI prediction", isOn: $settings.enabled)
+        Toggle(isOn: $settings.filterPunctuation) {
+          SettingLabel(
+            "Filter punctuation",
+            hint: "Strips the punctuation the model predicts. Turn off to let candidates keep it.")
+        }
+        Toggle(isOn: $settings.aiOnly) {
+          SettingLabel(
+            "AI-only candidates",
+            hint: "Candidates come from the model alone: no dictionary words, one suggestion with no label.")
+        }
+        SettingsSlider(
+          title: "Candidate position",
+          hint: "AI candidates must sit below the search range to appear.",
+          value: $settings.targetIndex, range: 0...20, step: 1)
+        SettingsSlider(title: "Minimum input length", value: $settings.minInputLength, range: 1...40, step: 1)
+        SettingsSlider(title: "Minimum characters", value: $settings.minHanzi, range: 1...10, step: 1)
+        SettingsSlider(
+          title: "Debounce (ms)",
+          hint: "Applies to every input method that has AI prediction wired in.",
+          value: $settings.debounceMs, range: 0...2000, step: 20)
+
+        Divider()
+
+        SettingsSlider(title: "Search range", value: $settings.searchRange, range: 1...50, step: 1)
+        SettingsSlider(title: "Context window", value: $settings.contextWindowSize, range: 1...50, step: 1)
+        SettingsSlider(title: "Minimum context length", value: $settings.minContextPromptLength, range: 1...20, step: 1)
+        SettingsSlider(title: "Max tokens", value: $settings.maxTokens, range: 8...512, step: 8)
+        SettingsChoice("Device", selection: $settings.device, options: [("cpu", "CPU")])
+      }
     }
   }
 }
@@ -634,11 +647,13 @@ struct SettingsSlider: View {
 
 extension SettingsSlider {
   init(title: LocalizedStringKey, hint: String? = nil, value: Binding<Int>, range: ClosedRange<Int>, step: Int) {
-    self.init(title: title,
-              hint: hint,
-              value: Binding(get: { Double(value.wrappedValue) },
-                             set: { value.wrappedValue = Int($0.rounded()) }),
-              range: Double(range.lowerBound)...Double(range.upperBound),
-              step: Double(step))
+    self.init(
+      title: title,
+      hint: hint,
+      value: Binding(
+        get: { Double(value.wrappedValue) },
+        set: { value.wrappedValue = Int($0.rounded()) }),
+      range: Double(range.lowerBound)...Double(range.upperBound),
+      step: Double(step))
   }
 }

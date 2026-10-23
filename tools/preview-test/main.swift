@@ -144,7 +144,8 @@ do {
         "got \(content.bounds.origin)")
   let horizontalSize = horizontal.intrinsicContentSize
   let verticalSize = vertical.intrinsicContentSize
-  check(verticalSize.height > verticalSize.width, "vertical preview is taller than wide",
+  check(abs(verticalSize.width - horizontalSize.height) < 1 && abs(verticalSize.height - horizontalSize.width) < 1,
+        "vertical preview swaps the measured axes",
         "h=\(horizontalSize) v=\(verticalSize)")
   check(bangkeView.textView.frame.width > 0 && bangkeView.textView.frame.height > 0,
         "vertical text view frame is non-empty", "got \(bangkeView.textView.frame)")
@@ -482,8 +483,9 @@ do {
             "ratio \(ratio)")
     }
   }
-  model.settings.appearance.colorScheme = "native"
-  model.settings.appearance.colorSchemeDark = "native"
+  model.settings.appearance = BangkeSettings.Appearance()
+  model.settings.appearance.cornerRadius = 12
+  model.settings.behavior.pageSize = 5
   for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", NSAppearance.Name.darkAqua)] {
     window.appearance = NSAppearance(named: appearance)
     for _ in 0..<10 { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
@@ -654,6 +656,35 @@ do {
         Int((dark.greenComponent * 255).rounded()) == 0x1C &&
         Int((dark.blueComponent * 255).rounded()) == 0x23,
         "dark candidates use the Mist field colour")
+}
+
+print("26. full pages and AI preview examples follow the current draft")
+do {
+  var settings = BangkeSettings()
+  settings.appearance.candidateListLayout = "stacked"
+  settings.behavior.pageSize = 20
+  let view = BangkePreviewCanvas(frame: .zero)
+  view.apply(settings: settings)
+  let text = bangkeView(in: view)!.textView
+  func sample() -> String { text.textContentStorage?.attributedString?.string ?? "" }
+  check(sample().components(separatedBy: "\n").count == 20, "all twenty candidates are previewed")
+  var ai = BangkeSettings.AIPredict()
+  ai.targetIndex = 2
+  view.aiSettings = ai
+  view.apply(settings: settings)
+  check(sample().components(separatedBy: "\n").dropFirst(2).first?.contains("让表达更自然") == true, "AI insertion position follows the draft")
+  ai.aiOnly = true
+  view.aiSettings = ai
+  view.apply(settings: settings)
+  check(!sample().contains("1.") && sample().contains("让表达更自然"), "AI-only preview hides dictionary candidates and labels")
+  ai.filterPunctuation = false
+  view.aiSettings = ai
+  view.apply(settings: settings)
+  check(sample().contains("，让表达更自然。"), "punctuation filtering changes the example")
+  ai.enabled = false
+  view.aiSettings = ai
+  view.apply(settings: settings)
+  check(!sample().contains("让表达更自然"), "disabling AI removes the example")
 }
 
 print(failures == 0 ? "\nALL PASS" : "\n\(failures) FAILURE(S)")

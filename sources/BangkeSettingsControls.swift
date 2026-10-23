@@ -112,7 +112,7 @@ struct SettingsChoice: View {
               return nil
             }
           }
-          .onChange(of: active) { reader.scrollTo($0) }
+          .onSettingsChange(of: active) { reader.scrollTo($0) }
           .onDisappear {
             if let keyboardMonitor { NSEvent.removeMonitor(keyboardMonitor) }
             keyboardMonitor = nil
@@ -147,8 +147,10 @@ struct SettingsButtonStyle: ButtonStyle {
       .font(.system(size: 14, weight: .medium))
       .padding(.horizontal, 18).padding(.vertical, 9)
       .foregroundStyle(Color(nsColor: BangkePalette.color(primary ? .onAccent : .ink)))
-      .background(Color(nsColor: BangkePalette.color(primary ? .accent : .field)),
-                  in: RoundedRectangle(cornerRadius: 7))
+      .background(
+        Color(nsColor: BangkePalette.color(primary ? .accent : .field)),
+        in: RoundedRectangle(cornerRadius: 7)
+      )
       .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color(nsColor: BangkePalette.color(.line)).opacity(0.4)))
       .opacity(configuration.isPressed ? 0.75 : 1)
   }
@@ -197,9 +199,88 @@ struct SettingsTrackSlider: NSViewRepresentable {
       switch event.keyCode {
       case 123, 125: doubleValue = max(minValue, doubleValue - increment)
       case 124, 126: doubleValue = min(maxValue, doubleValue + increment)
-      default: super.keyDown(with: event); return
+      default:
+        super.keyDown(with: event)
+        return
       }
       sendAction(action, to: target)
+    }
+  }
+}
+
+struct SettingsLivePreview: View {
+  let settings: BangkeSettings
+  var aiSettings: BangkeSettings.AIPredict?
+  @State private var lightSize: CGSize = .zero
+  @State private var darkSize: CGSize = .zero
+  @State private var longSample = false
+  @Environment(\.colorScheme) private var colorScheme
+  var body: some View {
+    let dark = colorScheme == .dark
+    let size = dark ? darkSize : lightSize
+    return VStack(alignment: .leading, spacing: 12) {
+      Text("Preview").font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
+      VStack(alignment: .leading, spacing: 16) {
+        HStack {
+          Text("Document · Input scene")
+          Spacer()
+          Text(dark ? LocalizedStringKey("Dark preview") : LocalizedStringKey("Light preview"))
+        }
+        .font(.caption)
+        .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
+        Text(
+          settings.appearance.inlineCandidate
+            ? (longSample ? "今天，让每一次输入都恰到好处" : "今天，蚌壳")
+            : (settings.appearance.inlinePreedit ? "今天，bangke" : "今天，")
+        )
+        .font(.system(size: 18))
+        ScrollView([.horizontal, .vertical]) {
+          BangkePreviewRepresentable(
+            settings: settings, dark: dark, longSample: longSample, aiSettings: aiSettings,
+            onPanelSize: { if dark { darkSize = $0 } else { lightSize = $0 } }
+          )
+          .frame(width: max(1, size.width), height: max(1, size.height))
+        }
+        HStack {
+          Button {
+            longSample = false
+          } label: {
+            Text("Normal candidates").frame(maxWidth: .infinity)
+          }
+          .buttonStyle(SettingsButtonStyle(primary: !longSample))
+          Button {
+            longSample = true
+          } label: {
+            Text("Long candidates").frame(maxWidth: .infinity)
+          }
+          .buttonStyle(SettingsButtonStyle(primary: longSample))
+        }
+
+        Text("Original font size · Scroll to view overflow").font(.caption)
+          .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
+      }
+      .padding(20)
+      .frame(height: 360)
+      .background(Color(nsColor: BangkePalette.color(.card)), in: RoundedRectangle(cornerRadius: 12))
+      .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(nsColor: BangkePalette.color(.line)).opacity(0.4)))
+      Text(
+        aiSettings == nil
+          ? LocalizedStringKey("Adjust settings on the left to preview candidate changes.")
+          : LocalizedStringKey("AI examples show appearance and position, not actual model output.")
+      ).font(.caption)
+        .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
+    }
+  }
+}
+
+extension View {
+  @ViewBuilder
+  fileprivate func onSettingsChange<Value: Equatable>(of value: Value, action: @escaping (Value) -> Void) -> some View {
+    if #available(macOS 14, *) {
+      onChange(of: value) { _, updated in action(updated) }
+    } else {
+      onChange(of: value, perform: action)
     }
   }
 }

@@ -96,6 +96,7 @@ final class BangkePreviewCanvas: NSView {
   /// the settings page shows a forced-light and a forced-dark panel side by side.
   var forcedDark: Bool?
   var longSample = false
+  var aiSettings: BangkeSettings.AIPredict?
 
   /// How many sample candidates to draw. Follows the real `menu/page_size` so
   /// the stacked preview shows as many rows as the actual panel would.
@@ -146,14 +147,26 @@ final class BangkePreviewCanvas: NSView {
 
   private func attributedText(theme: BangkeTheme) -> NSAttributedString {
     let text = NSMutableAttributedString()
-    let vertical = theme.vertical
     let linear = theme.linear
-    // 样例数跟随每页候选数(循环取词), 堆叠时行数才和真实面板一致;
-    // 竖排面板是单列从上往下、天然很高, 只取前两个控制高度。
-    let count = vertical ? min(2, sampleCount) : sampleCount
+    // Preserve every candidate at its original size; the preview viewport scrolls.
+    let count = sampleCount
     let pool = longSample ? ["让每一次输入都恰到好处", "今天的表达更自然一些", "把想法写下来"] : sampleCandidates
-    let candidates = (0..<count).map { pool[$0 % pool.count] }
-    let comments = (0..<count).map { sampleComments[$0 % sampleComments.count] }
+    var candidates = (0..<count).map { pool[$0 % pool.count] }
+    var comments = (0..<count).map { sampleComments[$0 % sampleComments.count] }
+    let onlyAI = aiSettings?.enabled == true && aiSettings?.aiOnly == true
+    if let aiSettings, aiSettings.enabled {
+      let prediction = aiSettings.filterPunctuation ? "让表达更自然" : "，让表达更自然。"
+      if onlyAI {
+        candidates = [prediction]
+        comments = ["AI 示例"]
+      } else {
+        let position = min(candidates.count, max(0, aiSettings.targetIndex))
+        candidates.insert(prediction, at: position)
+        comments.insert("AI 示例", at: position)
+        candidates = Array(candidates.prefix(count))
+        comments = Array(comments.prefix(count))
+      }
+    }
 
     // Inline preedit keeps the pinyin in the client's marked text, and
     // BangkeInputController duly passes the panel an empty preedit
@@ -180,7 +193,7 @@ final class BangkePreviewCanvas: NSView {
       let separator = (index == 0 && text.length == 0) ? "" : (linear ? "  " : "\n")
       text.append(NSAttributedString(string: separator, attributes: attrs))
 
-      let line = NSMutableAttributedString(string: theme.candidateFormat, attributes: labelAttrs)
+      let line = NSMutableAttributedString(string: onlyAI ? "[candidate] [comment]" : theme.candidateFormat, attributes: labelAttrs)
       for range in line.string.ranges(of: /\[candidate\]/) {
         line.addAttributes(attrs, range: NSRange(range, in: line.string))
       }
@@ -268,6 +281,7 @@ struct BangkePreviewRepresentable: NSViewRepresentable {
   let settings: BangkeSettings
   var dark: Bool?
   var longSample = false
+  var aiSettings: BangkeSettings.AIPredict?
   /// Reports the freshly measured panel size after each apply. The hosting
   /// view does not reliably re-query `sizeThatFits` when an NSViewRepresentable
   /// invalidates its intrinsic content mid-update, so the measured size has to
@@ -278,6 +292,7 @@ struct BangkePreviewRepresentable: NSViewRepresentable {
     let view = BangkePreviewCanvas(frame: .zero)
     view.forcedDark = dark
     view.longSample = longSample
+    view.aiSettings = aiSettings
     view.apply(settings: settings)
     reportSize(of: view)
     return view
@@ -286,6 +301,7 @@ struct BangkePreviewRepresentable: NSViewRepresentable {
   func updateNSView(_ nsView: BangkePreviewCanvas, context: Context) {
     nsView.forcedDark = dark
     nsView.longSample = longSample
+    nsView.aiSettings = aiSettings
     nsView.apply(settings: settings)
     reportSize(of: nsView)
   }
