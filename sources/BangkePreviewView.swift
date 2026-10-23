@@ -95,6 +95,7 @@ final class BangkePreviewCanvas: NSView {
   /// When set, the preview renders this appearance instead of the app's own —
   /// the settings page shows a forced-light and a forced-dark panel side by side.
   var forcedDark: Bool?
+  var longSample = false
 
   /// How many sample candidates to draw. Follows the real `menu/page_size` so
   /// the stacked preview shows as many rows as the actual panel would.
@@ -150,7 +151,8 @@ final class BangkePreviewCanvas: NSView {
     // 样例数跟随每页候选数(循环取词), 堆叠时行数才和真实面板一致;
     // 竖排面板是单列从上往下、天然很高, 只取前两个控制高度。
     let count = vertical ? min(2, sampleCount) : sampleCount
-    let candidates = (0..<count).map { sampleCandidates[$0 % sampleCandidates.count] }
+    let pool = longSample ? ["让每一次输入都恰到好处", "今天的表达更自然一些", "把想法写下来"] : sampleCandidates
+    let candidates = (0..<count).map { pool[$0 % pool.count] }
     let comments = (0..<count).map { sampleComments[$0 % sampleComments.count] }
 
     // Inline preedit keeps the pinyin in the client's marked text, and
@@ -265,6 +267,7 @@ final class BangkePreviewCanvas: NSView {
 struct BangkePreviewRepresentable: NSViewRepresentable {
   let settings: BangkeSettings
   var dark: Bool?
+  var longSample = false
   /// Reports the freshly measured panel size after each apply. The hosting
   /// view does not reliably re-query `sizeThatFits` when an NSViewRepresentable
   /// invalidates its intrinsic content mid-update, so the measured size has to
@@ -274,6 +277,7 @@ struct BangkePreviewRepresentable: NSViewRepresentable {
   func makeNSView(context: Context) -> BangkePreviewCanvas {
     let view = BangkePreviewCanvas(frame: .zero)
     view.forcedDark = dark
+    view.longSample = longSample
     view.apply(settings: settings)
     reportSize(of: view)
     return view
@@ -281,6 +285,7 @@ struct BangkePreviewRepresentable: NSViewRepresentable {
 
   func updateNSView(_ nsView: BangkePreviewCanvas, context: Context) {
     nsView.forcedDark = dark
+    nsView.longSample = longSample
     nsView.apply(settings: settings)
     reportSize(of: nsView)
   }

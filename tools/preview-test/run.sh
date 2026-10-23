@@ -30,6 +30,7 @@ fi
 # "cannot find X in scope" 报错, 按提示补进列表即可。
 SOURCES=(
     sources/BangkePreviewView.swift
+    sources/BangkeSettingsControls.swift
     sources/BangkePreferencesWindow.swift
     sources/BangkeView.swift
     sources/BangkeTheme.swift

@@ -101,7 +101,7 @@ final class BangkePreferencesWindowController: NSWindowController, NSWindowDeleg
 
   convenience init() {
     let window = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 740, height: 680),
+      contentRect: NSRect(x: 0, y: 0, width: 1240, height: 840),
       styleMask: [.titled, .closable, .miniaturizable, .resizable],
       backing: .buffered,
       defer: false
@@ -137,14 +137,6 @@ private enum SettingsPage: String, CaseIterable, Identifiable {
     }
   }
 
-  var icon: String {
-    switch self {
-    case .appearance: "paintpalette"
-    case .behavior: "keyboard"
-    case .aiPrediction: "sparkles"
-    case .about: "info.circle"
-    }
-  }
 }
 
 // MARK: - Root view
@@ -156,15 +148,20 @@ struct BangkePreferencesView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      HStack(spacing: 0) {
-        sidebar
-        Divider()
-        content
-      }
+      navigation
+      Divider()
+      content.frame(maxWidth: .infinity, maxHeight: .infinity)
+
       Divider()
       footer
     }
-    .frame(minWidth: 700, minHeight: 620)
+    .frame(minWidth: 1100, minHeight: 720)
+    .background(Color(nsColor: BangkePalette.color(.ground)))
+    .foregroundStyle(Color(nsColor: BangkePalette.color(.ink)))
+    .tint(Color(nsColor: BangkePalette.color(.accent)))
+    .font(.system(size: 14))
+    .toggleStyle(.switch)
+    .buttonStyle(SettingsButtonStyle())
     .alert("Could not save settings", isPresented: isShowingError) {
       Button("OK", role: .cancel) { model.errorMessage = nil }
     } message: {
@@ -172,20 +169,28 @@ struct BangkePreferencesView: View {
     }
   }
 
-  /// Plain Button rows rather than a selection-driven List: List selection
-  /// goes through AppKit's text-selection machinery, which is unreliable in a
-  /// hand-made NSWindow + NSHostingView inside an accessory-launched app.
-  /// Buttons work regardless of how the window became key.
-  private var sidebar: some View {
-    VStack(alignment: .leading, spacing: 4) {
-      ForEach(SettingsPage.allCases) { item in
-        SidebarRow(page: item, isSelected: page == item) { page = item }
+  private var navigation: some View {
+    ZStack {
+      HStack {
+        Text(Brand.displayName.isEmpty ? "蚌壳拼音" : Brand.displayName).font(.system(size: 18, weight: .semibold))
+        Spacer()
       }
-      Spacer(minLength: 0)
+      HStack(spacing: 8) {
+        ForEach(SettingsPage.allCases) { item in
+          Button { page = item } label: {
+            Text(item.title)
+              .font(.system(size: 14, weight: .semibold))
+              .padding(.horizontal, 18).padding(.vertical, 12)
+              .foregroundStyle(Color(nsColor: BangkePalette.color(page == item ? .accent : .muted)))
+              .background(Color(nsColor: BangkePalette.color(.soft)).opacity(page == item ? 1 : 0),
+                          in: RoundedRectangle(cornerRadius: 8))
+          }
+          .buttonStyle(.plain)
+        }
+      }
     }
-    .padding(10)
-    .frame(width: 200)
-    .background(SidebarBackdrop())
+    .padding(.horizontal, 28)
+    .frame(height: 72)
   }
 
   @ViewBuilder
@@ -218,13 +223,13 @@ struct BangkePreferencesView: View {
 
   private var footer: some View {
     HStack {
-      Button("Restore Defaults") { model.restoreDefaults() }
       Spacer()
+      Button("Restore Defaults") { model.restoreDefaults() }
       Button("Cancel") { onClose() }
         .keyboardShortcut(.cancelAction)
       Button("Save and Apply") { save() }
         .keyboardShortcut(.defaultAction)
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(SettingsButtonStyle(primary: true))
     }
     .padding(16)
   }
@@ -251,50 +256,11 @@ struct BangkePreferencesView: View {
   }
 }
 
-// MARK: - Sidebar
-
-private struct SidebarRow: View {
-  let page: SettingsPage
-  let isSelected: Bool
-  let action: () -> Void
-
-  var body: some View {
-    Button(action: action) {
-      HStack(spacing: 8) {
-        Image(systemName: page.icon).imageScale(.medium)
-        Text(page.title)
-        Spacer(minLength: 0)
-      }
-      .padding(.horizontal, 8)
-      .padding(.vertical, 5)
-      .contentShape(Rectangle())
-      .background(
-        RoundedRectangle(cornerRadius: 6)
-          .fill(isSelected ? Color(nsColor: .controlAccentColor).opacity(0.22) : .clear)
-      )
-    }
-    .buttonStyle(.plain)
-  }
-}
-
-/// The sidebar's vibrancy panel; SwiftUI has no direct sidebar material.
-private struct SidebarBackdrop: NSViewRepresentable {
-  func makeNSView(context: Context) -> NSVisualEffectView {
-    let view = NSVisualEffectView()
-    view.material = .sidebar
-    view.blendingMode = .behindWindow
-    view.state = .active
-    return view
-  }
-
-  func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
-}
-
 // MARK: - Page header
 
 private struct SettingsPageHeader: View {
   let title: LocalizedStringKey
-  var subtitle: LocalizedStringKey? = nil
+  var subtitle: LocalizedStringKey?
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
@@ -304,9 +270,9 @@ private struct SettingsPageHeader: View {
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(.horizontal, 20)
+    .padding(.horizontal, 30)
     .padding(.top, subtitle == nil ? 24 : 20)
-    .padding(.bottom, 6)
+    .padding(.bottom, 20)
   }
 }
 
@@ -317,199 +283,129 @@ struct AppearanceSettingsPage: View {
   let colorSchemes: [BangkeSettings.NamedOption]
   let fontFamilies: [String]
 
-  /// Measured by each preview canvas and pushed back in; drives that panel's
-  /// aspect-fit frame on the next layout pass (see BangkePreviewRepresentable
-  /// .onPanelSize). 配色方案可自带布局/排版覆盖键(如冷漠强制水平排列),
-  /// 浅深两块的固有形状可能不同, 各测各的, 不能共用一个宽高比。
+  /// Keep each appearance's measured size so switching themes never scales the preview.
   @State private var lightSize: CGSize = .zero
   @State private var darkSize: CGSize = .zero
+  @Environment(\.colorScheme) private var colorScheme
+  @State private var longSample = false
+  @State private var advanced = false
 
   var body: some View {
     VStack(spacing: 0) {
       SettingsPageHeader(title: "Appearance")
-      preview
-      Divider()
-      form
+      HStack(alignment: .top, spacing: 28) {
+        form.frame(maxWidth: .infinity, maxHeight: .infinity)
+        preview.frame(maxWidth: .infinity)
+      }
+      .padding(.horizontal, 30)
+      .padding(.bottom, 24)
     }
   }
 
   private var form: some View {
-    Form {
-      Section("Color") {
-        Picker("Color scheme", selection: $settings.appearance.colorScheme) {
-          ForEach(colorSchemes) { Text($0.name).tag($0.id) }
-        }
-        Picker("Dark color scheme", selection: $settings.appearance.colorSchemeDark) {
-          Text("Follow light scheme").tag("")
-          ForEach(colorSchemes) { Text($0.name).tag($0.id) }
-        }
-        SettingsSlider(title: "Background transparency",
-                       hint: "1 is fully transparent, 0 is opaque.",
-                       value: $settings.appearance.transparency, range: 0...1, step: 0.05)
+    SettingsForm {
+      SettingsSection("Color") {
+        SettingsChoice("Color scheme", selection: $settings.appearance.colorScheme, options: colorSchemes.map { ($0.id, $0.name) })
+
       }
 
-      Section("Font") {
-        Picker("Font", selection: $settings.appearance.fontFace) {
-          ForEach(fontFamilies, id: \.self) { Text($0).tag($0) }
-        }
+      SettingsSection("Font") {
+        SettingsChoice("Font", selection: $settings.appearance.fontFace, options: fontFamilies.map { ($0, $0) })
         SettingsSlider(title: "Font size", value: $settings.appearance.fontPoint, range: 8...48, step: 1)
       }
 
-      Section("Layout") {
-        Picker("Candidate list", selection: $settings.appearance.candidateListLayout) {
-          Text("Stacked").tag("stacked")
-          Text("Linear").tag("linear")
-        }
-        Picker("Text orientation", selection: $settings.appearance.textOrientation) {
-          Text("Horizontal").tag("horizontal")
-          Text("Vertical").tag("vertical")
-        }
+      SettingsSection("Layout") {
+        SettingsChoice("Candidate list", selection: $settings.appearance.candidateListLayout, options: choices([
+            ("stacked", "Stacked"),
+            ("linear", "Linear")]))
         SettingsSlider(title: "Corner radius", value: $settings.appearance.cornerRadius, range: 0...30, step: 1)
-        SettingsSlider(title: "Highlight corner radius", value: $settings.appearance.hilitedCornerRadius, range: 0...30, step: 1)
-        SettingsSlider(title: "Line spacing", value: $settings.appearance.lineSpacing, range: -10...30, step: 1)
-        SettingsSlider(title: "Preedit spacing", value: $settings.appearance.spacing, range: -10...30, step: 1)
-        SettingsSlider(title: "Shadow size", value: $settings.appearance.shadowSize, range: 0...30, step: 1)
-        SettingsSlider(title: "Border height", value: $settings.appearance.borderHeight, range: -10...20, step: 1)
-        SettingsSlider(title: "Border width", value: $settings.appearance.borderWidth, range: -10...20, step: 1)
+
       }
 
-      Section("Display") {
-        Toggle("Show preedit in the input field", isOn: $settings.appearance.inlinePreedit)
-        Toggle("Show selected candidate in the input field", isOn: $settings.appearance.inlineCandidate)
-        Toggle("Translucent background", isOn: $settings.appearance.translucency)
-        Toggle("Stack transparent colors", isOn: $settings.appearance.mutualExclusive)
-        Toggle("Keep panel near the screen edge", isOn: $settings.appearance.memorizeSize)
-        Toggle("Show paging arrows", isOn: $settings.appearance.showPaging)
-      }
-
-      Section("Format") {
-        LabeledContent {
-          TextField("", text: $settings.appearance.candidateFormat)
-            .labelsHidden()
-        } label: {
-          SettingLabel("Candidate format",
-                       hint: "Use [label], [candidate] and [comment] as placeholders.")
+      DisclosureGroup("更多外观选项", isExpanded: $advanced) {
+        VStack(alignment: .leading, spacing: 22) {
+          SettingsSection("Color") {
+            SettingsChoice("Dark color scheme", selection: $settings.appearance.colorSchemeDark, options: [("", NSLocalizedString("Follow light scheme", comment: ""))]
+              + colorSchemes.map { ($0.id, $0.name) })
+            SettingsSlider(title: "Background transparency",
+            hint: "1 is fully transparent, 0 is opaque.",
+            value: $settings.appearance.transparency, range: 0...1, step: 0.05)
+          }
+          SettingsSection("Layout") {
+            SettingsChoice("Text orientation", selection: $settings.appearance.textOrientation, options: choices([
+            ("horizontal", "Horizontal"),
+            ("vertical", "Vertical")]))
+            SettingsSlider(title: "Highlight corner radius", value: $settings.appearance.hilitedCornerRadius, range: 0...30, step: 1)
+            SettingsSlider(title: "Line spacing", value: $settings.appearance.lineSpacing, range: -10...30, step: 1)
+            SettingsSlider(title: "Preedit spacing", value: $settings.appearance.spacing, range: -10...30, step: 1)
+            SettingsSlider(title: "Shadow size", value: $settings.appearance.shadowSize, range: 0...30, step: 1)
+            SettingsSlider(title: "Border height", value: $settings.appearance.borderHeight, range: -10...20, step: 1)
+            SettingsSlider(title: "Border width", value: $settings.appearance.borderWidth, range: -10...20, step: 1)
+          }
+          SettingsSection("Display") {
+            Toggle("Show preedit in the input field", isOn: $settings.appearance.inlinePreedit)
+            Toggle("Show selected candidate in the input field", isOn: $settings.appearance.inlineCandidate)
+            Toggle("Translucent background", isOn: $settings.appearance.translucency)
+            Toggle("Stack transparent colors", isOn: $settings.appearance.mutualExclusive)
+            Toggle("Keep panel near the screen edge", isOn: $settings.appearance.memorizeSize)
+            Toggle("Show paging arrows", isOn: $settings.appearance.showPaging)
+          }
+          SettingsSection("Format") {
+            SettingsRow {
+              TextField("", text: $settings.appearance.candidateFormat)
+              .labelsHidden()
+            } label: {
+              SettingLabel("Candidate format",
+              hint: "Use [label], [candidate] and [comment] as placeholders.")
+            }
+            SettingsChoice("Status messages", selection: $settings.appearance.statusMessageType, options: choices([
+            ("long", "Long"),
+            ("short", "Short"),
+            ("mix", "Mixed")]))
+          }
         }
-        Picker("Status messages", selection: $settings.appearance.statusMessageType) {
-          Text("Long").tag("long")
-          Text("Short").tag("short")
-          Text("Mixed").tag("mix")
-        }
+        .padding(.top, 16)
       }
     }
-    .formStyle(.grouped)
   }
 
   private var preview: some View {
-    VStack(spacing: 8) {
-      Text("Preview").font(.caption).foregroundStyle(.secondary)
-      // 浅色、深色两块面板, 中间一道直线分界, 整体居中。切分方向随面板形态
-      // 自适应: 单行横条上下切分(浅上深下), 多行/竖排左右切分(浅左深右)。
-      // 两块各按自身测量值等比缩放并限高; 外框圆角, 两半左上角各标明暗模式。
-      ZStack {
-        Group {
-          if isWidePanel {
-            VStack(spacing: 12) {
-              previewPanel(dark: false)
-              previewPanel(dark: true)
-            }
-          } else {
-            HStack(spacing: 16) {
-              previewPanel(dark: false)
-              previewPanel(dark: true)
-            }
-          }
-        }
-        .frame(maxHeight: 280)
-        .frame(maxWidth: .infinity)
-        modeLabels
-      }
-      .background(SplitBackdrop(horizontal: isWidePanel))
-      .clipShape(RoundedRectangle(cornerRadius: 10))
-      // 固定高度：预览是展示条，不参与和表单的空间谈判。改成定高前，
-      // 角标的 maxHeight: .infinity 让整条无限贪高，叠加 layoutPriority(1)
-      // 必赢，表单被挤到 0 高——任何触发重排的拖动（如圆角）都会复现。
-      .frame(height: 280)
-    }
-    .padding(16)
-    .frame(maxWidth: .infinity)
-  }
-
-  /// 两半各占一格, 左上角放模式角标, 与切分方向同步。
-  private var modeLabels: some View {
-    Group {
-      if isWidePanel {
-        VStack(spacing: 0) {
-          modeLabel("Light").frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-          modeLabel("Dark").frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-      } else {
-        HStack(spacing: 0) {
-          modeLabel("Light").frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-          modeLabel("Dark").frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-      }
-    }
-    .padding(8)
-    .allowsHitTesting(false)
-  }
-
-  private func modeLabel(_ key: LocalizedStringKey) -> some View {
-    Text(key)
-      .font(.caption2)
-      .foregroundStyle(.secondary)
-      .padding(.horizontal, 7)
-      .padding(.vertical, 2)
-      .background(.thinMaterial, in: Capsule())
-  }
-
-  /// 单行横条又宽又矮, 左右并排会被压得很小 —— 上下切分各得全宽。
-  private var isWidePanel: Bool {
-    lightSize.width > lightSize.height
-  }
-
-  private func previewPanel(dark: Bool) -> some View {
+    let dark = colorScheme == .dark
     let size = dark ? darkSize : lightSize
-    return BangkePreviewRepresentable(settings: settings,
-                               dark: dark,
-                               onPanelSize: { if dark { darkSize = $0 } else { lightSize = $0 } })
-      .aspectRatio(size.width > 0 ? size.width / size.height : 1,
-                   contentMode: .fit)
-      .frame(maxHeight: 280)
-  }
+    return VStack(alignment: .leading, spacing: 12) {
+      Text("Preview").font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
+      VStack(alignment: .leading, spacing: 16) {
+        HStack {
+          Text("文稿 · 输入场景")
+          Spacer()
+          Text("跟随系统深浅主题")
+        }
+        .font(.caption)
+        .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
+        Text("今天，bangke").font(.system(size: 18))
+        ScrollView([.horizontal, .vertical]) {
+          BangkePreviewRepresentable(settings: settings, dark: dark, longSample: longSample,
+            onPanelSize: { if dark { darkSize = $0 } else { lightSize = $0 } })
+            .frame(width: max(1, size.width), height: max(1, size.height))
+        }
+        HStack {
+          Button { longSample = false } label: { Text("普通候选").frame(maxWidth: .infinity) }
+            .buttonStyle(SettingsButtonStyle(primary: !longSample))
+          Button { longSample = true } label: { Text("长句候选").frame(maxWidth: .infinity) }
+            .buttonStyle(SettingsButtonStyle(primary: longSample))
+        }
 
-}
-
-/// 预览背板: 浅色/深色两半、中间一道直线分界。背板用固定色号
-/// (浅色 C0C0C0 / 深色 696969), 不随系统外观漂移, 两半永远稳定可辨。
-/// horizontal = 上浅下深(适合单行横条), 否则左浅右深(适合多行/竖排)。
-private struct SplitBackdrop: View {
-  var horizontal = false
-
-  var body: some View {
-    ZStack {
-      if horizontal {
-        VStack(spacing: 0) { halves }
-        separator.frame(height: 1)
-      } else {
-        HStack(spacing: 0) { halves }
-        separator.frame(width: 1)
+        Text("原始字号 · 超出区域可滚动查看").font(.caption)
+          .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
       }
+      .padding(20)
+      .frame(height: 360)
+      .background(Color(nsColor: BangkePalette.color(.card)), in: RoundedRectangle(cornerRadius: 12))
+      .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(nsColor: BangkePalette.color(.line)).opacity(0.4)))
+      Text("调整左侧设置，即可查看候选窗的变化。").font(.caption)
+        .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
     }
-  }
-
-  @ViewBuilder private var halves: some View {
-    Rectangle().fill(Color(nsColor: Self.resolved(dark: false)))
-    Rectangle().fill(Color(nsColor: Self.resolved(dark: true)))
-  }
-
-  private var separator: some View {
-    Rectangle().fill(Color.primary.opacity(0.2))
-  }
-
-  private static func resolved(dark: Bool) -> NSColor {
-    let gray = CGFloat((dark ? 0x69 : 0xC0)) / 255
-    return NSColor(srgbRed: gray, green: gray, blue: gray, alpha: 1)
   }
 }
 
@@ -518,43 +414,38 @@ private struct SplitBackdrop: View {
 struct BehaviorSettingsPage: View {
   @Binding var settings: BangkeSettings.Behavior
 
-  /// Config value paired with the label the picker shows. The value is what
-  /// `ascii_composer/switch_key` stores, so only the label is translatable.
-  private let shiftActions: [(value: String, label: LocalizedStringKey)] = [
-    ("commit_code", "Commit code"),
-    ("commit_text", "Commit text"),
-    ("inline_ascii", "Inline ASCII"),
-    ("clear", "Clear"),
-    ("noop", "Do nothing")
-  ]
-
   var body: some View {
     VStack(spacing: 0) {
       SettingsPageHeader(title: "Behavior",
                          subtitle: "Menu bar and typing behavior.")
-      Form {
-        Section("Menu Bar") {
+      SettingsForm {
+        SettingsSection("Menu Bar") {
           Toggle("Show status icon in the menu bar", isOn: $settings.showStatusIcon)
-          Picker("Notifications", selection: $settings.notificationsWhen) {
-            Text("Never").tag("never")
-            Text("When appropriate").tag("appropriate")
-            Text("Always").tag("always")
-          }
+          SettingsChoice("Notifications", selection: $settings.notificationsWhen, options: choices([
+            ("never", "Never"),
+            ("appropriate", "When appropriate"),
+            ("always", "Always")]))
         }
 
-        Section("Typing") {
+        SettingsSection("Typing") {
           SettingsSlider(title: "Candidates per page", value: $settings.pageSize, range: 1...20, step: 1)
           SettingsSlider(title: "Chord duration", value: $settings.chordDuration, range: 0...1, step: 0.01)
-          Picker("Left Shift", selection: $settings.shiftLeftAction) {
-            ForEach(shiftActions, id: \.value) { Text($0.label).tag($0.value) }
-          }
-          Picker("Right Shift", selection: $settings.shiftRightAction) {
-            ForEach(shiftActions, id: \.value) { Text($0.label).tag($0.value) }
-          }
+          SettingsChoice("Left Shift", selection: $settings.shiftLeftAction, options: choices([
+            ("commit_code", "Commit code"),
+            ("commit_text", "Commit text"),
+            ("inline_ascii", "Inline ASCII"),
+            ("clear", "Clear"),
+            ("noop", "Do nothing")]))
+          SettingsChoice("Right Shift", selection: $settings.shiftRightAction, options: choices([
+            ("commit_code", "Commit code"),
+            ("commit_text", "Commit text"),
+            ("inline_ascii", "Inline ASCII"),
+            ("clear", "Clear"),
+            ("noop", "Do nothing")]))
         }
 
-        Section("Keyboard Layout") {
-          LabeledContent {
+        SettingsSection("Keyboard Layout") {
+          SettingsRow {
             TextField("", text: $settings.keyboardLayout)
               .labelsHidden()
           } label: {
@@ -563,7 +454,7 @@ struct BehaviorSettingsPage: View {
           }
         }
       }
-      .formStyle(.grouped)
+
     }
   }
 }
@@ -581,15 +472,10 @@ struct AIPredictSettingsPage: View {
                          subtitle: "Model predictions for each input method.")
       // 方案选择用分段滑块、且与配置项同处一张卡片: 切换滑块时整卡内容
       // 一起变化, 直观传达「这套配置属于所选方案」。
-      Form {
-        Section {
-          LabeledContent {
-            Picker("", selection: $selectedSchema) {
-              ForEach(schemas) { Text($0.name).tag($0.id) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(maxWidth: 240, alignment: .trailing)
+      SettingsForm {
+        SettingsSection {
+          SettingsRow {
+            SettingsChoice("", selection: $selectedSchema, options: schemas.map { ($0.id, $0.name) })
           } label: {
             SettingLabel("Input method", hint: "Each input method keeps its own AI settings.")
           }
@@ -618,12 +504,10 @@ struct AIPredictSettingsPage: View {
           SettingsSlider(title: "Context window", value: $settings.contextWindowSize, range: 1...50, step: 1)
           SettingsSlider(title: "Minimum context length", value: $settings.minContextPromptLength, range: 1...20, step: 1)
           SettingsSlider(title: "Max tokens", value: $settings.maxTokens, range: 8...512, step: 8)
-          Picker("Device", selection: $settings.device) {
-            Text("CPU").tag("cpu")
-          }
+          SettingsChoice("Device", selection: $settings.device, options: [("cpu", "CPU")])
         }
       }
-      .formStyle(.grouped)
+
     }
   }
 }
@@ -724,20 +608,21 @@ private struct SettingLabel: View {
 
 struct SettingsSlider: View {
   let title: LocalizedStringKey
-  var hint: String? = nil
+  var hint: String?
   @Binding var value: Double
   let range: ClosedRange<Double>
   let step: Double
 
   var body: some View {
-    LabeledContent {
+    SettingsRow {
       HStack(spacing: 8) {
-        Slider(value: $value, in: range, step: step)
+        Slider(value: $value, in: range, step: step).frame(width: 120)
         Text(displayValue)
           .monospacedDigit()
           .foregroundStyle(.secondary)
           .frame(width: 40, alignment: .trailing)
       }
+      .frame(width: 220)
     } label: {
       SettingLabel(title, hint: hint)
     }

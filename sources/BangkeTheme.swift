@@ -7,6 +7,32 @@
 
 import AppKit
 
+/// Shared Mist / Paper tokens for settings and the system-following candidate panel.
+enum BangkePalette {
+  enum Token: Int { case ground, panel, card, field, line, ink, muted, accent, soft, onAccent }
+  private static let dark: [UInt32] = [
+    0x11151a, 0x1b2027, 0x20262e, 0x171c23, 0x606c7c,
+    0xedf1f5, 0xadb8c7, 0x94c8bc, 0x2b403e, 0x102722
+  ]
+  private static let light: [UInt32] = [
+    0xeeeae3, 0xfaf8f4, 0xffffff, 0xf6f3ed, 0x918777,
+    0x302c26, 0x6b6257, 0x785330, 0xeee2d3, 0xffffff
+  ]
+
+  static func color(_ token: Token, dark isDark: Bool) -> NSColor {
+    let value = (isDark ? dark : light)[token.rawValue]
+    return NSColor(srgbRed: CGFloat((value >> 16) & 255) / 255,
+                   green: CGFloat((value >> 8) & 255) / 255,
+                   blue: CGFloat(value & 255) / 255, alpha: 1)
+  }
+
+  static func color(_ token: Token) -> NSColor {
+    NSColor(name: nil) { appearance in
+      color(token, dark: appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua)
+    }
+  }
+}
+
 final class BangkeTheme {
   static let offsetHeight: CGFloat = 5
   static let defaultFontSize: CGFloat = NSFont.systemFontSize
@@ -246,6 +272,17 @@ final class BangkeTheme {
     var commentFontSize = config.getDouble("style/comment_font_point")
     var preeditFontName = config.getString("style/preedit_font_face")
     var preeditFontSize = config.getDouble("style/preedit_font_point")
+
+    backgroundColor = BangkePalette.color(.field, dark: dark)
+    textColor = BangkePalette.color(.ink, dark: dark)
+    candidateTextColor = textColor
+    highlightedTextColor = textColor
+    candidateLabelColor = BangkePalette.color(.muted, dark: dark)
+    commentTextColor = candidateLabelColor
+    highlightedBackColor = BangkePalette.color(.accent, dark: dark)
+    highlightedCandidateTextColor = BangkePalette.color(.onAccent, dark: dark)
+    highlightedCandidateLabelColor = highlightedCandidateTextColor
+    highlightedCommentTextColor = highlightedCandidateTextColor
 
     let colorSchemeOption = dark ? "style/color_scheme_dark" : "style/color_scheme"
     if let colorScheme = config.getString(colorSchemeOption) {

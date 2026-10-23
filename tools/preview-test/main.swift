@@ -402,7 +402,7 @@ do {
   check(view.subviews.first === contentBefore, "same orientation reuses the subtree")
 }
 
-print("18. mismatched scheme layouts keep both preview panels visible")
+print("18. the current-theme preview stays at its original size")
 do {
   // 内置方案已降级为纯配色(布局/排版键由设置页全局值决定), 但手写 yaml
   // 给方案加键仍然生效。这里注入一个带 linear+inline_preedit 的临时方案
@@ -432,7 +432,7 @@ do {
   model.settings.appearance.colorSchemeDark = "azure"
 
   let hosting = NSHostingView(rootView: BangkePreferencesView(model: model, onClose: {}))
-  hosting.frame = NSRect(x: 0, y: 0, width: 560, height: 620)
+  hosting.frame = NSRect(x: 0, y: 0, width: 1240, height: 840)
   let window = NSWindow(contentRect: hosting.bounds, styleMask: [.titled], backing: .buffered, defer: false)
   window.contentView = hosting
   NSApp.setActivationPolicy(.regular)
@@ -448,7 +448,7 @@ do {
     if let c = v as? BangkePreviewCanvas { canvases.append(c) }
     queue.append(contentsOf: v.subviews)
   }
-  check(canvases.count == 2, "both preview canvases are hosted", "got \(canvases.count)")
+  check(canvases.count == 1, "one preview follows the current system appearance", "got \(canvases.count)")
 
   for canvas in canvases {
     let half = canvas.forcedDark == true ? "dark" : "light"
@@ -463,6 +463,17 @@ do {
     if canvas.forcedDark != true {
       check(ratio > 2, "hand-written per-scheme layout keys still override (linear wins)",
             "ratio \(ratio)")
+    }
+  }
+  model.settings.appearance.colorScheme = "native"
+  model.settings.appearance.colorSchemeDark = "native"
+  for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", NSAppearance.Name.darkAqua)] {
+    window.appearance = NSAppearance(named: appearance)
+    for _ in 0..<10 { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
+    if let bitmap = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) {
+      hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
+      let path = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("bangke-settings-\(name).png")
+      try! bitmap.representation(using: .png, properties: [:])!.write(to: path)
     }
   }
   window.orderOut(nil)
