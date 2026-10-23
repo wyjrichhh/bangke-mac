@@ -98,6 +98,22 @@
         }
       }
     },
+    "Adjust settings on the left to preview candidate changes.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "调整左侧设置，即可查看候选窗的变化。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "調整左側設定，即可查看候選窗的變化。"
+          }
+        }
+      }
+    },
     "Always": {
       "localizations": {
         "zh-Hans": {
@@ -554,6 +570,22 @@
         }
       }
     },
+    "Dark preview": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深色预览"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深色預覽"
+          }
+        }
+      }
+    },
     "Debounce (ms)": {
       "localizations": {
         "zh-Hans": {
@@ -631,6 +663,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "不處理"
+          }
+        }
+      }
+    },
+    "Document · Input scene": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文稿 · 输入场景"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文稿 · 輸入場景"
           }
         }
       }
@@ -891,6 +939,22 @@
         }
       }
     },
+    "Light preview": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "浅色预览"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "淺色預覽"
+          }
+        }
+      }
+    },
     "Line spacing": {
       "localizations": {
         "zh-Hans": {
@@ -935,6 +999,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "長"
+          }
+        }
+      }
+    },
+    "Long candidates": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "长句候选"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "長句候選"
           }
         }
       }
@@ -1067,6 +1147,22 @@
         }
       }
     },
+    "More appearance options": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多外观选项"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多外觀選項"
+          }
+        }
+      }
+    },
     "Never": {
       "localizations": {
         "zh-Hans": {
@@ -1079,6 +1175,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "從不"
+          }
+        }
+      }
+    },
+    "Normal candidates": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "普通候选"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "普通候選"
           }
         }
       }
@@ -1111,6 +1223,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "好"
+          }
+        }
+      }
+    },
+    "Original font size · Scroll to view overflow": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原始字号 · 超出区域可滚动查看"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原始字號 · 超出區域可捲動查看"
           }
         }
       }
@@ -1384,6 +1512,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "剝掉模型預測出的標點；關閉後候選會保留標點。"
+          }
+        }
+      }
+    },
+    "System colors": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统配色"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系統配色"
           }
         }
       }

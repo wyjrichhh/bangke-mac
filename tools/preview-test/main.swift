@@ -17,6 +17,8 @@ initializeRimeForHarness()
 
 // Open the production settings view against the isolated harness configuration.
 if CommandLine.arguments.contains("--review") {
+  let base = BangkeConfig()
+  if base.openBaseConfig() { NSApp.bangkeAppDelegate.config = base }
   let model = BangkeSettingsModel()
   let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 840),
                         styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -26,7 +28,7 @@ if CommandLine.arguments.contains("--review") {
   window.center()
   window.makeKeyAndOrderFront(nil)
   NSApp.activate(ignoringOtherApps: true)
-  NSApp.run()
+  withExtendedLifetime(window) { NSApp.run() }
   exit(0)
 }
 

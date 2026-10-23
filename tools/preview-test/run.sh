@@ -43,6 +43,7 @@ SOURCES=(
 
 OUT_DIR="${REPO_ROOT}/build/preview-test"   # build/ 已在 .gitignore 里
 mkdir -p "${OUT_DIR}"
+xcrun xcstringstool compile --output-directory "${OUT_DIR}" resources/Localizable.xcstrings
 
 # CLI 二进制的 Bundle.main 需要伪装成 app: BangkePreviewTheme 从
 # SharedSupport/<config>.yaml 读基础配置, Brand.configName 从 Info.plist 读。

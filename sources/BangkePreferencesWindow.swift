@@ -33,7 +33,7 @@ final class BangkeSettingsModel: ObservableObject {
     // represent the value the app defaults to.
     var schemes = BangkeSettings.colorSchemes()
     if !schemes.contains(where: { $0.id == "native" }) {
-      schemes.insert(BangkeSettings.NamedOption("native"), at: 0)
+      schemes.insert(BangkeSettings.NamedOption("native", name: NSLocalizedString("System colors", comment: "")), at: 0)
     }
     colorSchemes = schemes
 
@@ -322,7 +322,7 @@ struct AppearanceSettingsPage: View {
 
       }
 
-      DisclosureGroup("更多外观选项", isExpanded: $advanced) {
+      DisclosureGroup("More appearance options", isExpanded: $advanced) {
         VStack(alignment: .leading, spacing: 22) {
           SettingsSection("Color") {
             SettingsChoice("Dark color scheme", selection: $settings.appearance.colorSchemeDark, options: [("", NSLocalizedString("Follow light scheme", comment: ""))]
@@ -377,9 +377,9 @@ struct AppearanceSettingsPage: View {
         .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
       VStack(alignment: .leading, spacing: 16) {
         HStack {
-          Text("文稿 · 输入场景")
+          Text("Document · Input scene")
           Spacer()
-          Text("跟随系统深浅主题")
+          Text(dark ? LocalizedStringKey("Dark preview") : LocalizedStringKey("Light preview"))
         }
         .font(.caption)
         .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
@@ -393,20 +393,20 @@ struct AppearanceSettingsPage: View {
             .frame(width: max(1, size.width), height: max(1, size.height))
         }
         HStack {
-          Button { longSample = false } label: { Text("普通候选").frame(maxWidth: .infinity) }
+          Button { longSample = false } label: { Text("Normal candidates").frame(maxWidth: .infinity) }
             .buttonStyle(SettingsButtonStyle(primary: !longSample))
-          Button { longSample = true } label: { Text("长句候选").frame(maxWidth: .infinity) }
+          Button { longSample = true } label: { Text("Long candidates").frame(maxWidth: .infinity) }
             .buttonStyle(SettingsButtonStyle(primary: longSample))
         }
 
-        Text("原始字号 · 超出区域可滚动查看").font(.caption)
+        Text("Original font size · Scroll to view overflow").font(.caption)
           .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
       }
       .padding(20)
       .frame(height: 360)
       .background(Color(nsColor: BangkePalette.color(.card)), in: RoundedRectangle(cornerRadius: 12))
       .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(nsColor: BangkePalette.color(.line)).opacity(0.4)))
-      Text("调整左侧设置，即可查看候选窗的变化。").font(.caption)
+      Text("Adjust settings on the left to preview candidate changes.").font(.caption)
         .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
     }
   }
