@@ -458,6 +458,22 @@
         }
       }
     },
+    "Colors and theme": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配色与主题"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配色與主題"
+          }
+        }
+      }
+    },
     "Commit code": {
       "localizations": {
         "zh-Hans": {
@@ -1528,6 +1544,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "系統配色"
+          }
+        }
+      }
+    },
+    "Text and shape": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文字与形态"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文字與形態"
           }
         }
       }

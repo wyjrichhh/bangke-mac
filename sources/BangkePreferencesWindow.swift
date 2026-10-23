@@ -304,22 +304,17 @@ struct AppearanceSettingsPage: View {
 
   private var form: some View {
     SettingsForm {
-      SettingsSection("Color") {
+      SettingsSection("Colors and theme") {
         SettingsChoice("Color scheme", selection: $settings.appearance.colorScheme, options: colorSchemes.map { ($0.id, $0.name) })
 
       }
 
-      SettingsSection("Font") {
+      SettingsSection("Text and shape") {
         SettingsChoice("Font", selection: $settings.appearance.fontFace, options: fontFamilies.map { ($0, $0) })
         SettingsSlider(title: "Font size", value: $settings.appearance.fontPoint, range: 8...48, step: 1)
-      }
-
-      SettingsSection("Layout") {
-        SettingsChoice("Candidate list", selection: $settings.appearance.candidateListLayout, options: choices([
-            ("stacked", "Stacked"),
-            ("linear", "Linear")]))
         SettingsSlider(title: "Corner radius", value: $settings.appearance.cornerRadius, range: 0...30, step: 1)
-
+        SettingsChoice("Candidate list", selection: $settings.appearance.candidateListLayout, options: choices([
+            ("stacked", "Stacked"), ("linear", "Linear")]))
       }
 
       DisclosureGroup("More appearance options", isExpanded: $advanced) {
