@@ -285,7 +285,11 @@ final class BangkeTheme {
     highlightedCommentTextColor = highlightedCandidateTextColor
 
     let colorSchemeOption = dark ? "style/color_scheme_dark" : "style/color_scheme"
-    if let colorScheme = config.getString(colorSchemeOption) {
+    let configuredScheme = config.getString(colorSchemeOption)
+    let followsSystem = config.getString("style/color_scheme") == "native"
+    let colorScheme = configuredScheme.flatMap { $0.isEmpty ? nil : $0 }
+      ?? (dark && followsSystem ? "native" : nil)
+    if let colorScheme {
       if colorScheme != "native" {
         native = false
         let prefix = "preset_color_schemes/\(colorScheme)"

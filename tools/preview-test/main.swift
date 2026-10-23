@@ -620,5 +620,24 @@ do {
         "got \(loaded.transparency)")
 }
 
+print("25. system-following candidates use Mist / Paper without a separate dark scheme")
+do {
+  var settings = BangkeSettings()
+  settings.appearance.colorScheme = "native"
+  settings.appearance.colorSchemeDark = ""
+  let themes = BangkePreviewTheme.load(settings)!
+  check(themes.dark.available, "missing dark override still follows the system")
+  let light = themes.light.backgroundColor.usingColorSpace(.sRGB)!
+  let dark = themes.dark.backgroundColor.usingColorSpace(.sRGB)!
+  check(Int((light.redComponent * 255).rounded()) == 0xF6 &&
+        Int((light.greenComponent * 255).rounded()) == 0xF3 &&
+        Int((light.blueComponent * 255).rounded()) == 0xED,
+        "light candidates use the Paper field colour")
+  check(Int((dark.redComponent * 255).rounded()) == 0x17 &&
+        Int((dark.greenComponent * 255).rounded()) == 0x1C &&
+        Int((dark.blueComponent * 255).rounded()) == 0x23,
+        "dark candidates use the Mist field colour")
+}
+
 print(failures == 0 ? "\nALL PASS" : "\n\(failures) FAILURE(S)")
 exit(failures == 0 ? 0 : 1)
