@@ -264,7 +264,7 @@ private struct SettingsPageHeader: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
-      Text(title).font(.title2).bold()
+      Text(title).font(.system(size: 23, weight: .bold))
       if let subtitle {
         Text(subtitle).font(.caption).foregroundStyle(.secondary)
       }
@@ -619,7 +619,8 @@ struct SettingsSlider: View {
   var body: some View {
     SettingsRow {
       HStack(spacing: 8) {
-        Slider(value: $value, in: range, step: step).frame(width: 120)
+        SettingsTrackSlider(value: $value, range: range, step: step)
+          .frame(width: 120).accessibilityLabel(title)
         Text(displayValue)
           .monospacedDigit()
           .foregroundStyle(.secondary)

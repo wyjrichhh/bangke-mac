@@ -30,10 +30,11 @@ struct SettingsSection<Content: View>: View {
     VStack(alignment: .leading, spacing: 10) {
       Text(title).font(.system(size: 13, weight: .semibold))
         .foregroundStyle(Color(nsColor: BangkePalette.color(.muted)))
-      VStack(alignment: .leading, spacing: 20) {
+      VStack(alignment: .leading, spacing: 0) {
         content
       }
-      .padding(18)
+      .padding(.horizontal, 18)
+      .padding(.vertical, 6)
       .frame(maxWidth: .infinity, alignment: .leading)
       .background(Color(nsColor: BangkePalette.color(.card)), in: RoundedRectangle(cornerRadius: 12))
       .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(nsColor: BangkePalette.color(.line)).opacity(0.35)))
@@ -134,7 +135,7 @@ struct SettingsRow<Label: View, Content: View>: View {
       label.frame(maxWidth: .infinity, alignment: .leading)
       content.layoutPriority(1)
     }
-    .frame(maxWidth: .infinity, minHeight: 34)
+    .frame(maxWidth: .infinity, minHeight: 64)
   }
 }
 
@@ -150,5 +151,55 @@ struct SettingsButtonStyle: ButtonStyle {
                   in: RoundedRectangle(cornerRadius: 7))
       .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color(nsColor: BangkePalette.color(.line)).opacity(0.4)))
       .opacity(configuration.isPressed ? 0.75 : 1)
+  }
+}
+
+struct SettingsTrackSlider: NSViewRepresentable {
+  @Binding var value: Double
+  let range: ClosedRange<Double>
+  let step: Double
+
+  func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+  func makeNSView(context: Context) -> TrackSlider {
+    let slider = TrackSlider()
+    slider.numberOfTickMarks = 0
+    slider.isContinuous = true
+    slider.target = context.coordinator
+    slider.action = #selector(Coordinator.changed(_:))
+    return slider
+  }
+
+  func updateNSView(_ slider: TrackSlider, context: Context) {
+    context.coordinator.parent = self
+    slider.minValue = range.lowerBound
+    slider.maxValue = range.upperBound
+    slider.doubleValue = value
+    slider.increment = step
+    slider.trackFillColor = BangkePalette.color(.accent)
+  }
+
+  final class Coordinator: NSObject {
+    var parent: SettingsTrackSlider
+    init(_ parent: SettingsTrackSlider) { self.parent = parent }
+
+    @objc func changed(_ slider: NSSlider) {
+      let lower = parent.range.lowerBound
+      let rounded = lower + ((slider.doubleValue - lower) / parent.step).rounded() * parent.step
+      parent.value = min(parent.range.upperBound, max(lower, rounded))
+      slider.doubleValue = parent.value
+    }
+  }
+
+  final class TrackSlider: NSSlider {
+    var increment: Double = 1
+    override func keyDown(with event: NSEvent) {
+      switch event.keyCode {
+      case 123, 125: doubleValue = max(minValue, doubleValue - increment)
+      case 124, 126: doubleValue = min(maxValue, doubleValue + increment)
+      default: super.keyDown(with: event); return
+      }
+      sendAction(action, to: target)
+    }
   }
 }
