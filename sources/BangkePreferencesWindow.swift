@@ -575,6 +575,40 @@ struct AIPredictSettingsPage: View {
   @Binding var selectedSchema: String
   let schemas: [BangkeSettings.NamedOption]
 
+  @State private var modelError: String?
+
+  /// Reject incomplete directories before deployment; the plugin validates model contents.
+  private static func isModelDirectory(_ url: URL) -> Bool {
+    ["model.bin", "config.json", "shared_vocabulary.json", "tokenizer.json"]
+      .allSatisfy { FileManager.default.fileExists(atPath: url.appendingPathComponent($0).path) }
+  }
+
+  private func chooseModelDirectory() {
+    let panel = NSOpenPanel()
+    panel.canChooseDirectories = true
+    panel.canChooseFiles = false
+    panel.allowsMultipleSelection = false
+    panel.prompt = "Use This Model"
+    panel.message = "Choose the directory holding the model weights."
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    guard Self.isModelDirectory(url) else {
+      modelError = "Not a model directory: needs model.bin, config.json, shared_vocabulary.json and tokenizer.json."
+      return
+    }
+    modelError = nil
+    settings.modelPath = url.path
+  }
+
+  /// Restore the explicit bundled path so the translator can still load its model.
+  private func resetModelDirectory() {
+    guard let factory = BangkeSettings.factoryModelPath(for: selectedSchema) else {
+      modelError = "Cannot resolve the bundled default for this input method."
+      return
+    }
+    modelError = nil
+    settings.modelPath = factory
+  }
+
   var body: some View {
     VStack(spacing: 0) {
       SettingsPageHeader(title: "AI Prediction",
@@ -592,6 +626,34 @@ struct AIPredictSettingsPage: View {
             .frame(maxWidth: 240, alignment: .trailing)
           } label: {
             SettingLabel("Input method", hint: "Each input method keeps its own AI settings.")
+          }
+
+          LabeledContent {
+            VStack(alignment: .trailing, spacing: 4) {
+              HStack(spacing: 8) {
+                Text(settings.modelPath.isEmpty ? "Bundled with the app" : settings.modelPath)
+                  .lineLimit(1)
+                  .truncationMode(.middle)
+                  .foregroundStyle(.secondary)
+                  .help(settings.modelPath.isEmpty
+                        ? (BangkeSettings.factoryModelPath(for: selectedSchema) ?? "")
+                        : settings.modelPath)
+                Button("Choose…") { chooseModelDirectory() }
+                if !settings.modelPath.isEmpty,
+                   settings.modelPath != BangkeSettings.factoryModelPath(for: selectedSchema) {
+                  Button("Reset") { resetModelDirectory() }
+                }
+              }
+              if let modelError {
+                Text(modelError)
+                  .font(.caption)
+                  .foregroundStyle(.red)
+                  .multilineTextAlignment(.trailing)
+              }
+            }
+          } label: {
+            SettingLabel("Model",
+                         hint: "Which model directory the predictor loads. Changing it reloads the model in place — no restart.")
           }
 
           Toggle("Enable AI prediction", isOn: $settings.enabled)
@@ -631,6 +693,8 @@ struct AIPredictSettingsPage: View {
 // MARK: - About
 
 struct AboutSettingsPage: View {
+  @ObservedObject private var updates = NSApp.bangkeAppDelegate.unifiedUpdater
+  @AppStorage(BangkeUpdateChecker.automaticKey) private var automaticUpdates = true
   var body: some View {
     VStack(spacing: 12) {
       Image(nsImage: NSApp.applicationIconImage)
@@ -638,10 +702,11 @@ struct AboutSettingsPage: View {
         .frame(width: 128, height: 128)
       Text(Brand.displayName).font(.title2).bold()
       Text(versionText).font(.callout).foregroundStyle(.secondary)
-      // Hidden until an appcast feed is configured: without SUFeedURL the
-      // updater never starts, and the button would only log a warning.
+      Toggle("每小时自动检查更新", isOn: $automaticUpdates)
+        .toggleStyle(.checkbox)
       if BangkeApplicationDelegate.updatesEnabled {
-        Button("Check for Updates") { NSApp.bangkeAppDelegate.checkForUpdates() }
+        Button(updates.checking ? "正在检查…" : "检查更新") { NSApp.bangkeAppDelegate.checkForUpdates() }
+          .disabled(updates.checking)
       }
       Spacer()
     }

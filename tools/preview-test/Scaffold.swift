@@ -39,8 +39,9 @@ final class BangkeApplicationDelegate {
   func reloadSettings() {}
   func preferencesDidClose() {}
 
-  /// AboutSettingsPage gates its update button on this; the harness has no
-  /// Sparkle, so it just stays hidden.
+  /// Resolve the About page dependencies without starting background checks.
+  static let updateNotificationIdentifier = "preview-test-update"
+  let unifiedUpdater = BangkeUpdateChecker()
   static var updatesEnabled: Bool { false }
   func checkForUpdates() {}
 }

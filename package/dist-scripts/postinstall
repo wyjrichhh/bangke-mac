@@ -97,20 +97,23 @@ else
     echo "[postinstall] no ${RIME_ICE_SRC}, skipping 雾凇拼音 scheme" >> "${LOG}"
 fi
 
-if [ -f "${MODEL_SRC}/model.bin" ]; then
-    if [ -f "${MODEL_DST}/model.bin" ]; then
-        SRC_HASH=$(/usr/bin/shasum -a 256 "${MODEL_SRC}/model.bin" | awk '{print $1}')
-        DST_HASH=$(/usr/bin/shasum -a 256 "${MODEL_DST}/model.bin" | awk '{print $1}')
-        if [ "${SRC_HASH}" = "${DST_HASH}" ]; then
-            echo "[postinstall] model already up to date, skip copy" >> "${LOG}"
-        else
-            echo "[postinstall] model hash differs, refreshing" >> "${LOG}"
-            rm -rf "${MODEL_DST}"
-            mkdir -p "${MODEL_DST}"
-            cp -R "${MODEL_SRC}/." "${MODEL_DST}/"
-        fi
+# Include generation settings so decoder-only updates reach existing installs.
+model_fingerprint() {
+    /usr/bin/shasum -a 256 "$1/model.bin" 2>/dev/null | awk '{print $1}'
+    if [ -f "$1/generation_config.json" ]; then
+        /usr/bin/shasum -a 256 "$1/generation_config.json" | awk '{print $1}'
     else
-        echo "[postinstall] copying model -> ${MODEL_DST}" >> "${LOG}"
+        echo "-"
+    fi
+}
+
+if [ -f "${MODEL_SRC}/model.bin" ]; then
+    if [ -f "${MODEL_DST}/model.bin" ] && \
+       [ "$(model_fingerprint "${MODEL_SRC}")" = "$(model_fingerprint "${MODEL_DST}")" ]; then
+        echo "[postinstall] model already up to date, skip copy" >> "${LOG}"
+    else
+        echo "[postinstall] model differs, refreshing -> ${MODEL_DST}" >> "${LOG}"
+        rm -rf "${MODEL_DST}"
         mkdir -p "${MODEL_DST}"
         cp -R "${MODEL_SRC}/." "${MODEL_DST}/"
     fi

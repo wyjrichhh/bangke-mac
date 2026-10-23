@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BACE20261015000100000001 /* BangkeUpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = BACE20261015000100000002 /* BangkeUpdateChecker.swift */; };
 		2C6B9F9D2BCD086700E327DF /* librime-lua.dylib in Copy Rime plugins */ = {isa = PBXBuildFile; fileRef = 2C6B9F9A2BCD086700E327DF /* librime-lua.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 2C6B9F812BCD086700E327DF /* librime-ai-predict.dylib in Copy Rime plugins */ = {isa = PBXBuildFile; fileRef = 2C6B9F822BCD086700E327DF /* librime-ai-predict.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		2C6B9F9E2BCD086700E327DF /* librime-octagram.dylib in Copy Rime plugins */ = {isa = PBXBuildFile; fileRef = 2C6B9F9B2BCD086700E327DF /* librime-octagram.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
@@ -230,6 +231,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		BACE20261015000100000002 /* BangkeUpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = sources/BangkeUpdateChecker.swift; sourceTree = "<group>"; };
 		1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
 		29B97324FDCFA39411CA2CEA /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = /System/Library/Frameworks/AppKit.framework; sourceTree = "<absolute>"; };
 		29B97325FDCFA39411CA2CEA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = /System/Library/Frameworks/Foundation.framework; sourceTree = "<absolute>"; };
@@ -354,6 +356,7 @@
 			isa = PBXGroup;
 			children = (
 				B38E9B902BE9AE1E0036ABEF /* BangkeApplicationDelegate.swift */,
+				BACE20261015000100000002 /* BangkeUpdateChecker.swift */,
 				B38E9B942BEAFEFD0036ABEF /* BangkeInputController.swift */,
 				B39771222BECEA150093A49B /* MacOSKeyCodes.swift */,
 				B4A9D0032F30000300ABCDEF /* Brand.swift */,
@@ -639,6 +642,7 @@
 				B397712D2BEEB39D0093A49B /* InputSource.swift in Sources */,
 				B397712B2BEE4C160093A49B /* BangkePanel.swift in Sources */,
 				B38E9B912BE9AE1E0036ABEF /* BangkeApplicationDelegate.swift in Sources */,
+				BACE20261015000100000001 /* BangkeUpdateChecker.swift in Sources */,
 				B39771272BED9B250093A49B /* BangkeTheme.swift in Sources */,
 				B35D2FE82BF00839009D156B /* BridgingFunctions.swift in Sources */,
 				B3A001022F260100009D156B /* ReservedProperty.swift in Sources */,
@@ -666,7 +670,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 0;
-				MARKETING_VERSION = 0.1.6;
+				MARKETING_VERSION = 0.1.12;
 				DEAD_CODE_STRIPPING = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -723,7 +727,7 @@
 				CODE_SIGN_ENTITLEMENTS = resources/Bangke.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 0;
-				MARKETING_VERSION = 0.1.6;
+				MARKETING_VERSION = 0.1.12;
 				DEAD_CODE_STRIPPING = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",

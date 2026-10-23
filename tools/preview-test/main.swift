@@ -200,6 +200,38 @@ do {
   check(BangkeSettings.load().appearance.inlinePreedit, "reads back as true")
 }
 
+print("8b. the model path round-trips, and reset restores the bundled default")
+do {
+  let schema = "luna_pinyin"
+  let path = BangkeSettings.customFile(schema)
+  let bundled = "predict_models/zh-base-ct2-int8"
+
+  // Saving must preserve the bundled relative path.
+  var settings = BangkeSettings.load()
+  check(settings.aiPredict[schema]?.modelPath == bundled,
+        "reads the installed default", "got \(settings.aiPredict[schema]?.modelPath ?? "nil")")
+
+  // A directory chosen by the user is stored as an absolute path.
+  settings.aiPredict[schema]?.modelPath = "/tmp/some/model"
+  _ = try settings.save()
+  var text = try String(contentsOf: path, encoding: .utf8)
+  check(text.contains("model_path: /tmp/some/model"), "picked directory is persisted", text)
+  check(BangkeSettings.load().aiPredict[schema]?.modelPath == "/tmp/some/model",
+        "reads back the picked directory")
+
+  // Reset must resolve the same default shipped by the installer.
+  check(BangkeSettings.factoryModelPath(for: schema) == bundled,
+        "bundled default is readable for reset",
+        "got \(BangkeSettings.factoryModelPath(for: schema) ?? "nil")")
+
+  settings.aiPredict[schema]?.modelPath = BangkeSettings.factoryModelPath(for: schema) ?? ""
+  _ = try settings.save()
+  text = try String(contentsOf: path, encoding: .utf8)
+  check(text.contains("model_path: \(bundled)"), "reset writes the bundled default back", text)
+  check(!text.contains("/tmp/some/model"), "the picked path is gone", text)
+  check(BangkeSettings.load().aiPredict[schema]?.modelPath == bundled, "reads back the default")
+}
+
 print("9. every AI-wired schema gets its own settings, opened on the active one")
 do {
   let listed = waitForSchemas(["luna_pinyin", "rime_ice"])
