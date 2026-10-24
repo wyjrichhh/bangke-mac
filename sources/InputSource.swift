@@ -106,6 +106,24 @@ final class BangkeInstaller {
     return unsafeBitCast(idRef, to: CFString?.self) as String?
   }
 
+  /// Leave registration and enabled-mode preferences intact during deployment.
+  func prepareDeployment() -> Bool {
+    guard let current = Self.currentInputSourceID(),
+          current == Brand.inputSourceID || Brand.inputSourceIDs.contains(current) else { return true }
+    let enabledSources = TISCreateInputSourceList(nil, false).takeRetainedValue() as! [TISInputSource]
+    for source in enabledSources {
+      guard let typeRef = TISGetInputSourceProperty(source, kTISPropertyInputSourceType),
+            let type = unsafeBitCast(typeRef, to: CFString?.self),
+            type == kTISTypeKeyboardLayout,
+            getBool(for: source, key: kTISPropertyInputSourceIsSelectCapable) == true else { continue }
+      let result = TISSelectInputSource(source)
+      if result == noErr { return true }
+      print("Cannot select a keyboard layout for deployment: \(result)")
+    }
+    print("No selectable keyboard layout is available for deployment.")
+    return false
+  }
+
   func disable(modes: [InputMode] = []) {
     let modesToDisable = modes.isEmpty ? InputMode.allCases : modes
     for (mode, inputSource) in getInputSource(modes: modesToDisable) {

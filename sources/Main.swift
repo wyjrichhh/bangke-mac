@@ -84,6 +84,9 @@ struct BangkeApp {
           }
           installer.enable()
           return true
+        case "--prepare-deployment":
+          if !installer.prepareDeployment() { exit(1) }
+          return true
         case "--disable-input-source":
           if args.count > 2 {
             let modes = args[2...].map { BangkeInstaller.InputMode.from(inputSourceID: $0) }.compactMap { $0 }
@@ -226,6 +229,7 @@ Install \(Brand.productName):
   --install, --register-input-source    register input source
   --enable-input-source [source id...]  input source list optional
   --disable-input-source [source id...] input source list optional
+  --prepare-deployment                 switch to an enabled keyboard layout without disabling input modes
   --select-input-source [source id]     input source optional
 """
 }

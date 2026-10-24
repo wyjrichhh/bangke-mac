@@ -124,10 +124,9 @@ fi
 echo "[postinstall] chowning ${BANGKE_DIR} to ${LOGIN_USER}" >> "${LOG}"
 /usr/sbin/chown -R "${LOGIN_USER}:staff" "${BANGKE_DIR}"
 
-# 替换 bundle 会触发系统重启输入法; 它启动时发现 build/ 被清也会自行全量
-# 部署, 与下面的 --build 抢同一个用户目录。先禁用输入源把输入法压下去,
-# 部署完再启用+选中, 保证只有一个部署执行者。
-/usr/bin/sudo -u "${LOGIN_USER}" "${APP_BIN}" --disable-input-source || true
+# Switch away before stopping the process so the system cannot relaunch it
+# during dictionary compilation. Keep enabled-mode preferences untouched.
+/usr/bin/sudo -u "${LOGIN_USER}" "${APP_BIN}" --prepare-deployment
 /usr/bin/killall "${APP_NAME%.app}" >/dev/null 2>&1 || true
 
 if [ -z "${RIME_NO_PREBUILD}" ]; then
