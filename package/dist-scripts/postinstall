@@ -130,14 +130,16 @@ echo "[postinstall] chowning ${BANGKE_DIR} to ${LOGIN_USER}" >> "${LOG}"
 /usr/bin/sudo -u "${LOGIN_USER}" "${APP_BIN}" --disable-input-source || true
 /usr/bin/killall "${APP_NAME%.app}" >/dev/null 2>&1 || true
 
-"${APP_BIN}" --register-input-source
-
 if [ -z "${RIME_NO_PREBUILD}" ]; then
     # 以登录用户跑: user_data_dir 按 uid 解析, root 跑会落到 /var/root,
     # 而且部署产物会以 root 属主落在用户目录里。
     /usr/bin/sudo -u "${LOGIN_USER}" "${APP_BIN}" --build \
         || echo "[postinstall] WARN: --build returned non-zero" >> "${LOG}"
 fi
+
+# Registration can launch the input method immediately. Register only after the
+# builder exits so both processes cannot compile the same dictionary files.
+"${APP_BIN}" --register-input-source
 
 /usr/bin/sudo -u "${LOGIN_USER}" "${APP_BIN}" --enable-input-source || true
 /usr/bin/sudo -u "${LOGIN_USER}" "${APP_BIN}" --select-input-source || true
