@@ -1812,6 +1812,70 @@
           }
         }
       }
+    },
+    "Use This Model": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用此模型"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用此模型"
+          }
+        }
+      }
+    },
+    "Choose the directory holding the model weights.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择包含模型权重的目录。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇包含模型權重的目錄。"
+          }
+        }
+      }
+    },
+    "Not a model directory: needs model.bin, config.json, shared_vocabulary.json and tokenizer.json.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型目录不完整：需要 model.bin、config.json、shared_vocabulary.json 和 tokenizer.json。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型目錄不完整：需要 model.bin、config.json、shared_vocabulary.json 和 tokenizer.json。"
+          }
+        }
+      }
+    },
+    "Cannot resolve the bundled default for this input method.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法找到此输入方案的内置默认模型。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法找到此輸入方案的內建預設模型。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
