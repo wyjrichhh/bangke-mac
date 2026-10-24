@@ -523,13 +523,21 @@ struct AIPredictSettingsPage: View {
           SettingLabel("Input method", hint: "Each input method keeps its own AI settings.")
         }
 
-        Toggle("Enable AI prediction", isOn: $settings.enabled)
-        Toggle(isOn: $settings.filterPunctuation) {
+        SettingsRow {
+          Toggle("Enable AI prediction", isOn: $settings.enabled).labelsHidden()
+        } label: {
+          Text("Enable AI prediction")
+        }
+        SettingsRow {
+          Toggle("Filter punctuation", isOn: $settings.filterPunctuation).labelsHidden()
+        } label: {
           SettingLabel(
             "Filter punctuation",
             hint: "Strips the punctuation the model predicts. Turn off to let candidates keep it.")
         }
-        Toggle(isOn: $settings.aiOnly) {
+        SettingsRow {
+          Toggle("AI-only candidates", isOn: $settings.aiOnly).labelsHidden()
+        } label: {
           SettingLabel(
             "AI-only candidates",
             hint: "Candidates come from the model alone: no dictionary words, one suggestion with no label.")
