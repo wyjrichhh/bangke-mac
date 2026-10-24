@@ -32,6 +32,7 @@ SOURCES=(
     sources/BangkePreviewView.swift
     sources/BangkeSettingsControls.swift
     sources/BangkePreferencesWindow.swift
+    sources/BangkeUpdateChecker.swift
     sources/BangkeView.swift
     sources/BangkeTheme.swift
     sources/BangkeSettings.swift
@@ -51,6 +52,8 @@ xcrun xcstringstool compile --output-directory "${OUT_DIR}" resources/Localizabl
 cp -R "${REPO_ROOT}/data/." "${OUT_DIR}/SharedSupport/" 2>/dev/null || {
     mkdir -p "${OUT_DIR}/SharedSupport" && cp -R "${REPO_ROOT}/data/." "${OUT_DIR}/SharedSupport/"
 }
+# Mirror the installer layout so model reset reads the real bundled defaults.
+cp -R "${REPO_ROOT}/local/ai-predict-defaults" "${OUT_DIR}/SharedSupport/ai-predict-defaults"
 printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
     '<plist version="1.0"><dict>' \
     '<key>RimeConfigName</key><string>bangke</string>' \

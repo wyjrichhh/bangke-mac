@@ -70,6 +70,8 @@ struct BangkeSettings {
     var contextWindowSize = 10
     var minContextPromptLength = 2
     var device = "cpu"
+    /// An empty path preserves the installed default; chosen directories are absolute.
+    var modelPath = ""
   }
 
   var appearance = Appearance()
@@ -221,7 +223,19 @@ extension BangkeSettings {
     predict.minContextPromptLength = block(file, "min_context_prompt_length",
                                       isOpen ? config.getInt("ai_predict/min_context_prompt_length") : nil,
                                       predict.minContextPromptLength)
+    predict.modelPath = block(file, "model_path",
+                              isOpen ? config.getString("ai_predict/model_path") : nil,
+                              predict.modelPath)
     return predict
+  }
+
+  /// Read the bundled default from the same schema patch used during installation.
+  static func factoryModelPath(for schemaID: String) -> String? {
+    guard let support = Bundle.main.sharedSupportPath else { return nil }
+    let url = URL(fileURLWithPath: support)
+      .appendingPathComponent("ai-predict-defaults")
+      .appendingPathComponent("\(schemaID).custom.yaml")
+    return RimePatchFile(contentsOf: url).scalar(inBlock: aiBlock, "model_path")
   }
 }
 
@@ -433,11 +447,13 @@ extension BangkeSettings {
     return config.getString("speller/alphabet")
   }
 
-  /// Keys written into a schema's `ai_predict:` block. `model_path` is
-  /// deliberately absent: it is installed, not user-editable, and dropping it
-  /// would leave the translator with no model to load.
+  /// Keys written into a schema's `ai_predict:` block.
+  ///
+  /// `model_path` is written only when non-empty: it decides which model the
+  /// translator loads, so writing an empty value would leave it with nothing to
+  /// load at all. The installer seeds the default; the window only overrides it.
   static func aiEntries(for predict: AIPredict) -> [(String, PatchValue)] {
-    [
+    var entries: [(String, PatchValue)] = [
       ("enabled", .bool(predict.enabled)),
       ("filter_punctuation", .bool(predict.filterPunctuation)),
       ("ai_only", .bool(predict.aiOnly)),
@@ -451,6 +467,10 @@ extension BangkeSettings {
       ("min_context_prompt_length", .int(predict.minContextPromptLength)),
       ("device", .string(predict.device))
     ]
+    if !predict.modelPath.isEmpty {
+      entries.append(("model_path", .string(predict.modelPath)))
+    }
+    return entries
   }
 }
 

@@ -60,10 +60,43 @@ ok()   { printf "%s[ok]%s %s\n"            "$C_OK"   "$C_END" "$*"; }
 warn() { printf "%s[warn]%s %s\n"          "$C_WARN" "$C_END" "$*"; }
 die()  { printf "%s[error]%s %s\n"         "$C_ERR"  "$C_END" "$*" >&2; exit 1; }
 
+# Normal packaging output shows stages; full compiler/tool diagnostics remain
+# available in logs. A failed build prints its diagnostics and keeps its status.
+run_build() {
+    local diagnostics="$1"
+    shift
+    if "$@" >"${diagnostics}" 2>&1; then
+        ok "编译完成（详细日志: ${diagnostics}）"
+    else
+        local result=$?
+        cat "${diagnostics}" >&2
+        warn "编译失败，完整日志: ${diagnostics}"
+        return "${result}"
+    fi
+}
+
+# Keep the raw Apple-tool diagnostics; classify only the exact message reproduced
+# with an empty payload on this host, and only when pkgbuild itself succeeds.
+run_pkgbuild() {
+    local diagnostics="$1"
+    shift
+    if pkgbuild "$@" 2>"${diagnostics}"; then
+        cat "${diagnostics}" >&2
+        if grep -Fxq 'write: Permission denied' "${diagnostics}"; then
+            log "pkgbuild 诊断已记录: ${diagnostics}"
+        fi
+    else
+        cat "${diagnostics}" >&2
+        die "pkgbuild 失败，已停止打包（日志: ${diagnostics}）"
+    fi
+}
+
 # 先按脚本自身位置解析绝对路径，再 cd —— 否则从别处调用时相对路径会算错
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${PROJECT_ROOT}"
+PACKAGE_LOG_DIR="${DERIVED_DATA_PATH}/package-logs"
+mkdir -p "${PACKAGE_LOG_DIR}"
 # 品牌值来自 Brand.xcconfig（单一事实来源），不要在这里写死产物名
 APP_NAME="${APP_NAME:-$(bash "${PROJECT_ROOT}/scripts/brand.sh" APP_NAME)}"
 BUNDLE_ID="${BUNDLE_ID:-$(bash "${PROJECT_ROOT}/scripts/brand.sh" BRAND_BUNDLE_ID)}"
@@ -247,7 +280,7 @@ fi
 # 这样后面打包出来的 .app 一定带最新代码, 你不用再手动记 make release/install.
 if [ "${SKIP_BUILD}" != "1" ]; then
     log "[1/8] 重编 librime + 插件并同步到 lib/  (make librime ${LIBRIME_UNIVERSAL_ARG:-单架构})"
-    make librime ${LIBRIME_UNIVERSAL_ARG}
+    run_build "${PACKAGE_LOG_DIR}/librime-build.log" make librime ${LIBRIME_UNIVERSAL_ARG}
     PLUGIN_DYLIB="lib/rime-plugins/librime-ai-predict.dylib"
     if [ -f "${PLUGIN_DYLIB}" ]; then
         ok "ai-predict 插件已同步: $(shasum -a 256 "${PLUGIN_DYLIB}" | awk '{print substr($1,1,12)}')  ${PLUGIN_DYLIB}"
@@ -267,7 +300,7 @@ BUILD_NUMBER="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
 
 if [ "${SKIP_BUILD}" != "1" ]; then
     log "[2/8] 编译 ${APP_NAME}  (make release ARCHS='${ARCHS}' BUILD_NUMBER='${BUILD_NUMBER}')"
-    make release ARCHS="${ARCHS}" BUILD_NUMBER="${BUILD_NUMBER}"
+    run_build "${PACKAGE_LOG_DIR}/app-build.log" make release ARCHS="${ARCHS}" BUILD_NUMBER="${BUILD_NUMBER}"
 else
     log "[2/8] SKIP_BUILD=1, 跳过 make release"
 fi
@@ -357,10 +390,9 @@ for hook in preinstall postinstall; do
     chmod +x "${pkg_staging}/${hook}"
 done
 
-# pkgbuild 会往 stderr 吐几行 `write: Permission denied`，是它自己的噪音，不是
-# 打包失败：空目录上同样复现、退出码 0、payload 一条不少（可 `pkgutil
-# --payload-files` 核对）。别照着这几行去查仓库文件权限。
-pkgbuild \
+# Some local Apple tools emit permission diagnostics even for an empty package.
+# Preserve diagnostics and verify required payload entries before signing.
+run_pkgbuild "${PACKAGE_LOG_DIR}/pkgbuild-stderr.log" \
     --info "${PKG_INFO}" \
     --root "${PROJECT_ROOT}/${DERIVED_DATA_PATH}/Build/Products/Release" \
     --filter '.*\.swiftmodule$' \
@@ -372,6 +404,22 @@ pkgbuild \
     package/${PKG_STEM}.pkg
 
 [ -f package/${PKG_STEM}.pkg ] || die "pkgbuild 没产出 package/${PKG_STEM}.pkg"
+pkgutil --payload-files "package/${PKG_STEM}.pkg" \
+    | sed 's#^\./##' > "${PACKAGE_LOG_DIR}/payload-files.txt"
+APP_EXECUTABLE="$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "${APP_PATH}/Contents/Info.plist")"
+for required in \
+    "Contents/MacOS/${APP_EXECUTABLE}" \
+    "Contents/SharedSupport/ai-predict-defaults/default.custom.yaml" \
+    "Contents/SharedSupport/predict_models/zh-base-ct2-int8/model.bin" \
+    "Contents/SharedSupport/uninstall.sh"; do
+    grep -Fxq "${APP_NAME}/${required}" "${PACKAGE_LOG_DIR}/payload-files.txt" \
+        || die "安装包缺少必要内容: ${APP_NAME}/${required}"
+done
+if [ -f "${APP_PATH}/Contents/Frameworks/rime-plugins/librime-ai-predict.dylib" ]; then
+    grep -Fxq "${APP_NAME}/Contents/Frameworks/rime-plugins/librime-ai-predict.dylib" \
+        "${PACKAGE_LOG_DIR}/payload-files.txt" || die "安装包缺少 AI 插件"
+fi
+ok "安装包必要内容核验通过"
 
 # ---- 5) productsign -----------------------------------------------------
 log "[6/8] 签名 pkg (Developer ID Installer)"
@@ -401,9 +449,9 @@ pkgutil --check-signature package/${PKG_STEM}.pkg | sed 's/^/  /'
 
 if [ "${SKIP_NOTARIZE}" != "1" ]; then
     echo "--- stapler validate ---"
-    xcrun stapler validate package/${PKG_STEM}.pkg | sed 's/^/  /' || warn "stapler validate 失败"
+    xcrun stapler validate package/${PKG_STEM}.pkg | sed 's/^/  /' || die "stapler validate 失败"
     echo "--- spctl -a -vv -t install ---"
-    spctl -a -vv -t install package/${PKG_STEM}.pkg 2>&1 | sed 's/^/  /' || warn "spctl 评估失败"
+    spctl -a -vv -t install package/${PKG_STEM}.pkg 2>&1 | sed 's/^/  /' || die "spctl 评估失败"
 fi
 
 ARCH_TAG="$(echo "${ARCHS}" | tr ' ' '+')"

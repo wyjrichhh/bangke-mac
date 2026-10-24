@@ -32,12 +32,10 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
   /// Last schema an input session reported. The settings window opens on it, so
   /// the AI page shows the schema being typed with rather than an arbitrary one.
   private(set) var currentSchemaID = ""
-  // 未接入自有 appcast 前不启动更新器：Info.plist 里没有 SUFeedURL 时
-  // startingUpdater 会失败告警，菜单项也不该出现。
-  static var updatesEnabled: Bool {
-    !(Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "").isEmpty
-  }
-  let updateController = SPUStandardUpdaterController(startingUpdater: BangkeApplicationDelegate.updatesEnabled, updaterDelegate: nil, userDriverDelegate: nil)
+  // Unified notification feed; Sparkle installation remains disabled until signed appcasts exist.
+  static var updatesEnabled: Bool { true }
+  let unifiedUpdater = BangkeUpdateChecker()
+  let updateController = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
   var supportsGentleScheduledUpdateReminders: Bool {
     true
   }
@@ -63,9 +61,14 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
     NSApp.setActivationPolicy(.accessory)
   }
 
+  func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                              withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+    completionHandler([.banner, .list])
+  }
+
   func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
     if response.notification.request.identifier == Self.updateNotificationIdentifier && response.actionIdentifier == UNNotificationDefaultActionIdentifier {
-      updateController.updater.checkForUpdates()
+      checkForUpdates()
     }
 
     completionHandler()
@@ -76,6 +79,8 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
     refreshStatusItem()
     addObservers()
     scheduleLogHousekeeping()
+    UNUserNotificationCenter.current().delegate = self
+    unifiedUpdater.start()
   }
 
   func applicationWillTerminate(_ notification: Notification) {
@@ -136,11 +141,9 @@ final class BangkeApplicationDelegate: NSObject, NSApplicationDelegate, SPUStand
     NSApp.setActivationPolicy(.accessory)
   }
 
-  /// 检查更新入口。updater 在无 SUFeedURL 时从未启动，对它调
-  /// checkForUpdates 只会告警，所以先过 updatesEnabled 门控。
+  /// Check the unified release feed; installation requires user confirmation.
   func checkForUpdates() {
-    guard Self.updatesEnabled else { return }
-    updateController.updater.checkForUpdates()
+    unifiedUpdater.check(manual: true)
   }
 
   /// 进程常驻跨天时，昨天留下的日志不必等到下次重启或部署才归档。
