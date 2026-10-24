@@ -262,7 +262,21 @@ struct SettingsLivePreview: View {
       }
       .padding(20)
       .frame(height: 360)
-      .background(Color(nsColor: BangkePalette.color(.card)), in: RoundedRectangle(cornerRadius: 12))
+      .background {
+        if dark {
+          EllipticalGradient(
+            stops: [
+              .init(color: Color(nsColor: BangkePalette.color(.soft, dark: true)), location: 0),
+              .init(color: Color(nsColor: BangkePalette.color(.card, dark: true)), location: 0.7),
+              .init(color: Color(nsColor: BangkePalette.color(.card, dark: true)), location: 1)
+            ],
+            center: .topTrailing, startRadiusFraction: 0, endRadiusFraction: 1
+          )
+          .clipShape(RoundedRectangle(cornerRadius: 12))
+        } else {
+          RoundedRectangle(cornerRadius: 12).fill(Color(nsColor: BangkePalette.color(.card, dark: false)))
+        }
+      }
       .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(nsColor: BangkePalette.color(.line)).opacity(0.4)))
       Text(
         aiSettings == nil
